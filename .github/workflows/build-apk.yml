@@ -107,16 +107,14 @@ jobs:
             echo "${label} APK path: ${apk}" >&2
 
             if [ -x "${APKSIGNER}" ]; then
-              set +e
               local verify_output
-              verify_output="$("${APKSIGNER}" verify --print-certs "${apk}" 2>&1)"
-              local verify_status=$?
-              set -e
+              local verify_status=0
+              verify_output="$("${APKSIGNER}" verify --print-certs "${apk}" 2>&1)" || verify_status=$?
 
               if [ "${verify_status}" -eq 0 ]; then
                 # Expected apksigner output includes a "certificate SHA-1 digest:" line with build-tools 34.0.0.
                 sha1="$(echo "${verify_output}" | awk -F': ' '/certificate SHA-1 digest:/ {print $NF; exit}')"
-                if [ -n "${sha1}" ]; then
+                if echo "${sha1}" | grep -Eq '^([A-Fa-f0-9]{2}:){19}[A-Fa-f0-9]{2}$|^[A-Fa-f0-9]{40}$'; then
                   echo "${label} certificate SHA1: ${sha1}" >&2
                   echo "::notice title=${label} SHA1::${sha1}" >&2
                 else
