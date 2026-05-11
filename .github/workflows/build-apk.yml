@@ -49,7 +49,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          # Debug output directory is expected to contain one APK; when multiple exist, choose first sorted candidate.
+          # Debug output directory is expected to contain one APK; if multiple exist, choose the first alphabetically sorted path.
           DEBUG_APK="$(find app/build/outputs/apk/debug -maxdepth 1 -name '*.apk' | sort | head -n 1)"
           if [ -z "${DEBUG_APK}" ]; then
             echo "Debug APK not found."
@@ -70,7 +70,7 @@ jobs:
             APKSIGNER="$(command -v apksigner || true)"
           fi
 
-          if [ -x "${APKSIGNER}" ]; then
+          if [ -n "${APKSIGNER}" ] && [ -x "${APKSIGNER}" ]; then
             while IFS= read -r candidate; do
               if [ -n "${candidate}" ] && "${APKSIGNER}" verify "${candidate}" >/dev/null 2>&1; then
                 RELEASE_APK="${candidate}"
@@ -130,14 +130,15 @@ jobs:
             echo "::group::${label} APK SHA1" >&2
             echo "${label} APK path: ${apk}" >&2
 
-            if [ -x "${APKSIGNER}" ]; then
+          if [ -n "${APKSIGNER}" ] && [ -x "${APKSIGNER}" ]; then
               local verify_output
               local verify_status=0
               verify_output="$("${APKSIGNER}" verify --print-certs "${apk}" 2>&1)" || verify_status=$?
 
               if [ "${verify_status}" -eq 0 ]; then
-                # Expected apksigner output includes a "certificate SHA-1 digest:" line for the configured build-tools version.
+                # Expected apksigner output includes "certificate SHA-1 digest:" for the configured build-tools version.
                 sha1="$(echo "${verify_output}" | awk -F': ' '/certificate SHA-1 digest:/ {print $NF; exit}')"
+                # SHA1 is 20 bytes => 20 colon-separated hex pairs.
                 if echo "${sha1}" | grep -Eq '^([A-Fa-f0-9]{2}:){19}[A-Fa-f0-9]{2}$'; then
                   echo "${label} certificate SHA1: ${sha1}" >&2
                   echo "::notice title=${label} SHA1::${sha1}" >&2
