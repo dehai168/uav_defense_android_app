@@ -17,7 +17,7 @@ env:
   ANDROID_BUILD_TOOLS: "34.0.0"
 
 jobs:
-  build-apk:
+  build-apks:
     runs-on: ubuntu-latest
 
     steps:
@@ -130,7 +130,7 @@ jobs:
             echo "::group::${label} APK SHA1" >&2
             echo "${label} APK path: ${apk}" >&2
 
-          if [ -n "${APKSIGNER}" ] && [ -x "${APKSIGNER}" ]; then
+            if [ -n "${APKSIGNER}" ] && [ -x "${APKSIGNER}" ]; then
               local verify_output
               local verify_status=0
               verify_output="$("${APKSIGNER}" verify --print-certs "${apk}" 2>&1)" || verify_status=$?
@@ -188,7 +188,7 @@ jobs:
         id: release_tag
         run: echo "tag=apk-${{ github.run_number }}-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
 
-      - name: Create GitHub release with APK
+      - name: Create GitHub release with APKs
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v2
         with:
