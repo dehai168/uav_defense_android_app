@@ -129,13 +129,20 @@ fun RadarPanel(
         }
 
         Column(Modifier.align(Alignment.TopStart).padding(6.dp)) {
-            Text("扫描周期: 3.2s | 扫描方式: 环形 | 天线方位角: ${radarSweepAngle.toInt()}° | $currentTime", color = RadarGreen.copy(alpha = 0.75f), fontSize = 8.sp)
+            Text("扫描周期: 3.2s", color = RadarGreen.copy(alpha = 0.85f), fontSize = 9.sp)
+            Text("扫描方式: 环形", color = RadarGreen.copy(alpha = 0.85f), fontSize = 9.sp)
+            Text("天线方位角: ${"%.1f".format(radarSweepAngle)}°", color = RadarGreen.copy(alpha = 0.85f), fontSize = 9.sp)
+            Text(currentTime, color = RadarGreen.copy(alpha = 0.70f), fontSize = 9.sp)
         }
-        Column(Modifier.align(Alignment.TopEnd).padding(6.dp)) {
-            Text("连接状态: 已连接 | 工作模式: 搜索", color = RadarGreen.copy(alpha = 0.75f), fontSize = 8.sp)
+        Column(Modifier.align(Alignment.TopEnd).padding(6.dp), horizontalAlignment = androidx.compose.ui.Alignment.End) {
+            Text("连接状态: 已连接", color = RadarGreen.copy(alpha = 0.85f), fontSize = 9.sp)
+            Text("工作模式: 搜索", color = RadarGreen.copy(alpha = 0.85f), fontSize = 9.sp)
         }
         Column(Modifier.align(Alignment.BottomStart).padding(6.dp)) {
-            Text("一体机: 联动在线 | 工作状态: 正常工作", color = RadarGreen.copy(alpha = 0.75f), fontSize = 8.sp)
+            Text("一体机: 联动在线", color = RadarGreen.copy(alpha = 0.85f), fontSize = 9.sp)
+            Text("连接状态: 已连接", color = RadarGreen.copy(alpha = 0.85f), fontSize = 9.sp)
+            Text("工作模式: 搜索", color = RadarGreen.copy(alpha = 0.85f), fontSize = 9.sp)
+            Text("工作状态: 正常工作", color = RadarGreen.copy(alpha = 0.85f), fontSize = 9.sp)
         }
     }
 }
