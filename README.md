@@ -1,16 +1,16 @@
 # uav_defense_android_app
 
-Java + Android 12（API 31）项目基础模板，已包含 Codespaces 云端编译配置。
+Java + Android 14（API 34）项目基础模板，已包含 Codespaces 云端编译配置。
 
 ## 环境要求
 
 - JDK 17
-- Android SDK Platform 31
-- Android Build-Tools 31.0.0
+- Android SDK Platform 34
+- Android Build-Tools 34.0.0
 
 ## 本地构建 APK
 
-1. 安装 Android SDK 并确保包含 `platforms;android-31` 和 `build-tools;31.0.0`
+1. 安装 Android SDK 并确保包含 `platforms;android-34` 和 `build-tools;34.0.0`
 2. 在项目根目录执行：
 
 ```bash
