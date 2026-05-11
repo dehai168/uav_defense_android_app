@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">UAV Defense</string>
+    <string name="amap_key">请在此配置高德地图API_KEY</string>
 </resources>

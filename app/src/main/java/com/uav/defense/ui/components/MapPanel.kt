@@ -1,9 +1,8 @@
 package com.uav.defense.ui.components
 
-import androidx.compose.foundation.Canvas
+import android.os.Bundle
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -11,6 +10,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -30,25 +30,31 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.drawText
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import com.amap.api.maps.AMap
+import com.amap.api.maps.CameraUpdateFactory
+import com.amap.api.maps.MapView
+import com.amap.api.maps.model.BitmapDescriptorFactory
+import com.amap.api.maps.model.LatLng
+import com.amap.api.maps.model.Marker
+import com.amap.api.maps.model.MarkerOptions
+import com.amap.api.maps.model.PolygonOptions
 import com.uav.defense.data.models.PadTarget
 import com.uav.defense.ui.theme.AccentCyan
 import com.uav.defense.ui.theme.AmberColor
@@ -57,10 +63,16 @@ import com.uav.defense.ui.theme.DangerRed
 import com.uav.defense.ui.theme.PanelBg
 import com.uav.defense.ui.theme.RadarGreen
 import com.uav.defense.ui.theme.TextMain
-import kotlinx.coroutines.delay
-import kotlin.math.PI
-import kotlin.math.min
+import kotlin.math.cos
 import kotlin.math.sin
+
+private const val RADAR_LAT = 39.909230
+private const val RADAR_LNG = 116.397428
+private const val RADAR_RANGE_M = 1800.0
+private const val RADAR_AZIMUTH_CENTER = 48.0
+private const val RADAR_SCAN_HALF = 60.0
+private const val METERS_PER_LAT_DEG = 111000.0
+private val METERS_PER_LNG_DEG = METERS_PER_LAT_DEG * cos(Math.toRadians(RADAR_LAT))
 
 @Composable
 fun MapPanel(
@@ -78,149 +90,179 @@ fun MapPanel(
     onDoubleTap: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val textMeasurer = rememberTextMeasurer()
-    var measurePoints by remember { mutableStateOf<List<Offset>>(emptyList()) }
-    var measureDistance by remember { mutableStateOf<Double?>(null) }
-    var pulse by remember { mutableFloatStateOf(0f) }
+    val context = LocalContext.current
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
+    val mapView = remember { MapView(context).apply { onCreate(Bundle()) } }
+    var amap by remember { mutableStateOf<AMap?>(null) }
+    val markerMap = remember { mutableMapOf<String, Marker>() }
 
-    LaunchedEffect(Unit) {
-        while (true) {
-            delay(50)
-            pulse = (pulse + 0.06f) % (2f * PI.toFloat())
+    DisposableEffect(lifecycle) {
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_RESUME -> mapView.onResume()
+                Lifecycle.Event.ON_PAUSE -> mapView.onPause()
+                Lifecycle.Event.ON_DESTROY -> mapView.onDestroy()
+                else -> {}
+            }
         }
+        lifecycle.addObserver(observer)
+        if (lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) mapView.onResume()
+        onDispose { lifecycle.removeObserver(observer) }
     }
 
-    Box(modifier = modifier.background(PanelBg)) {
-        Canvas(
-            modifier = Modifier.fillMaxSize().pointerInput(measureMode, targets, enabledTargetIds) {
-                detectTapGestures(
-                    onDoubleTap = { onDoubleTap() },
-                    onTap = { tap ->
-                        val centerX = size.width / 2f
-                        val centerY = size.height / 2f
-                        val scale = (min(size.width, size.height) / 2f) / 1.5f
-                        if (measureMode) {
-                            when (measurePoints.size) {
-                                0 -> measurePoints = listOf(tap)
-                                1 -> {
-                                    measurePoints = measurePoints + tap
-                                    measureDistance = distanceKm(measurePoints[0], tap, scale)
-                                }
-                                else -> {
-                                    measurePoints = listOf(tap)
-                                    measureDistance = null
-                                }
-                            }
-                        } else {
-                            val hit = targets.filter { it.id in enabledTargetIds }.firstOrNull {
-                                val pos = targetToXY(it.bearing, it.distance, centerX, centerY, scale)
-                                (tap - pos).getDistance() < 28f
-                            }
-                            onTargetClick(hit?.id ?: "")
+    Box(modifier = modifier) {
+        AndroidView(
+            factory = { mapView },
+            modifier = Modifier.fillMaxSize(),
+            update = { view ->
+                if (amap == null) {
+                    amap = view.map?.apply {
+                        mapType = AMap.MAP_TYPE_SATELLITE
+                        uiSettings.apply {
+                            isZoomControlsEnabled = false
+                            isMyLocationButtonEnabled = false
+                            isScaleControlsEnabled = false
+                            isCompassEnabled = false
                         }
-                    }
-                )
-            }
-        ) {
-            val w = size.width
-            val h = size.height
-            val cx = w / 2f
-            val cy = h / 2f
-            val scale = (min(w, h) / 2f) / 1.5f
-
-            val bg = when (currentMapMode) {
-                "标准图" -> Color(0xFF0D1F0D)
-                "暗色图" -> Color(0xFF050505)
-                else -> PanelBg
-            }
-            drawRect(bg)
-
-            var gx = 0f
-            while (gx <= w) {
-                drawLine(BorderColor.copy(alpha = 0.35f), Offset(gx, 0f), Offset(gx, h), strokeWidth = 0.6f)
-                gx += 60f
-            }
-            var gy = 0f
-            while (gy <= h) {
-                drawLine(BorderColor.copy(alpha = 0.35f), Offset(0f, gy), Offset(w, gy), strokeWidth = 0.6f)
-                gy += 60f
-            }
-
-            for (i in 1..3) drawCircle(AccentCyan.copy(alpha = 0.2f), scale * i * 0.5f, Offset(cx, cy), style = Stroke(1f))
-
-            drawArc(
-                color = RadarGreen.copy(alpha = 0.16f),
-                startAngle = radarSweepAngle - 90f,
-                sweepAngle = 30f,
-                useCenter = true,
-                topLeft = Offset(cx - scale * 1.5f, cy - scale * 1.5f),
-                size = Size(scale * 3f, scale * 3f)
-            )
-
-            drawCircle(AccentCyan.copy(alpha = 0.8f), 20f, Offset(cx, cy))
-            drawCircle(AccentCyan.copy(alpha = 0.3f), 30f, Offset(cx, cy), style = Stroke(2f))
-
-            val pulseScale = (sin(pulse) * 0.3f + 0.7f)
-            targets.filter { it.id in enabledTargetIds }.forEach { t ->
-                val pos = targetToXY(t.bearing, t.distance, cx, cy, scale)
-                val color = if (t.relation == "hostile") DangerRed else AmberColor
-                val r = if (t.relation == "hostile") 10f * pulseScale else 8f
-                if (t.relation == "hostile") drawCircle(color.copy(alpha = 0.3f), r * 2f, pos)
-                drawCircle(color, r, pos)
-                if (selectedTargetId == t.id) drawCircle(AccentCyan, r + 4f, pos, style = Stroke(2f))
-                val label = textMeasurer.measure("目标${t.id.takeLast(2)}", style = TextStyle(fontSize = 10.sp, color = color))
-                drawText(
-                    textLayoutResult = label,
-                    topLeft = Offset(pos.x - label.size.width / 2f, pos.y - r - 18f)
-                )
-            }
-
-            if (measureMode && measurePoints.isNotEmpty()) {
-                drawCircle(AccentCyan, 6f, measurePoints[0])
-                if (measurePoints.size == 2) {
-                    drawLine(AccentCyan, measurePoints[0], measurePoints[1], 2f)
-                    drawCircle(AccentCyan, 6f, measurePoints[1])
-                    measureDistance?.let {
-                        val text = textMeasurer.measure("%.2fkm".format(it), style = TextStyle(color = AccentCyan, fontSize = 11.sp, fontWeight = FontWeight.Bold))
-                        val mid = Offset((measurePoints[0].x + measurePoints[1].x) / 2f, (measurePoints[0].y + measurePoints[1].y) / 2f)
-                        drawText(
-                            textLayoutResult = text,
-                            topLeft = Offset(mid.x - text.size.width / 2f, mid.y - 20f)
+                        moveCamera(
+                            CameraUpdateFactory.newLatLngZoom(
+                                LatLng(RADAR_LAT, RADAR_LNG), 14f
+                            )
                         )
+                        addPolygon(buildRadarCoveragePolygon())
+                        addMarker(
+                            MarkerOptions()
+                                .position(LatLng(RADAR_LAT, RADAR_LNG))
+                                .title("近程雷达-01 · 1.8km")
+                                .anchor(0.5f, 0.5f)
+                        )
+                        setOnMarkerClickListener { marker ->
+                            val id = marker.getObject() as? String
+                            if (id != null) {
+                                onTargetClick(id)
+                                true
+                            } else {
+                                marker.showInfoWindow()
+                                false
+                            }
+                        }
+                        setOnMapDoubleClickListener { onDoubleTap() }
+                        setOnMapClickListener { onTargetClick("") }
                     }
                 }
             }
+        )
 
-            val centerText = textMeasurer.measure("雷", style = TextStyle(fontSize = 14.sp, color = Color.Black, fontWeight = FontWeight.Bold))
-            drawText(
-                textLayoutResult = centerText,
-                topLeft = Offset(cx - centerText.size.width / 2f, cy - centerText.size.height / 2f)
-            )
+        LaunchedEffect(amap, currentMapMode) {
+            amap?.mapType = when (currentMapMode) {
+                "标准图" -> AMap.MAP_TYPE_NORMAL
+                else -> AMap.MAP_TYPE_SATELLITE
+            }
         }
 
-        Box(Modifier.align(Alignment.TopEnd).padding(8.dp).background(PanelBg.copy(alpha = 0.86f), RoundedCornerShape(4.dp)).border(1.dp, BorderColor, RoundedCornerShape(4.dp)).padding(horizontal = 8.dp, vertical = 4.dp)) {
-            Text("SAT-MAP | $currentMapMode", color = AccentCyan, fontSize = 10.sp)
+        LaunchedEffect(amap, targets, enabledTargetIds) {
+            val map = amap ?: return@LaunchedEffect
+            val enabledIds = targets.filter { it.id in enabledTargetIds }.map { it.id }.toSet()
+            markerMap.keys.toList().filter { it !in enabledIds }.forEach { id ->
+                markerMap[id]?.remove()
+                markerMap.remove(id)
+            }
+            targets.filter { it.id in enabledTargetIds }.forEach { t ->
+                val latLng = LatLng(t.lat, t.lng)
+                val hue = when (t.relation) {
+                    "hostile" -> BitmapDescriptorFactory.HUE_RED
+                    "friendly" -> BitmapDescriptorFactory.HUE_GREEN
+                    else -> BitmapDescriptorFactory.HUE_ORANGE
+                }
+                val existing = markerMap[t.id]
+                if (existing == null) {
+                    val m = map.addMarker(
+                        MarkerOptions()
+                            .position(latLng)
+                            .title("目标${t.id.takeLast(2)}")
+                            .snippet(t.droneModel)
+                            .icon(BitmapDescriptorFactory.defaultMarker(hue))
+                    )
+                    m?.setObject(t.id)
+                    if (m != null) markerMap[t.id] = m
+                } else {
+                    existing.position = latLng
+                }
+            }
+        }
+
+        Box(
+            Modifier
+                .align(Alignment.TopEnd)
+                .padding(8.dp)
+                .background(PanelBg.copy(alpha = 0.86f), RoundedCornerShape(4.dp))
+                .border(1.dp, BorderColor, RoundedCornerShape(4.dp))
+                .padding(horizontal = 8.dp, vertical = 4.dp)
+        ) {
+            Text("SAT-MAP  卫星图", color = AccentCyan, fontSize = 10.sp)
         }
 
         Column(
-            modifier = Modifier.align(Alignment.BottomEnd).padding(8.dp).background(PanelBg.copy(alpha = 0.86f), RoundedCornerShape(4.dp)).border(1.dp, BorderColor, RoundedCornerShape(4.dp)).padding(4.dp),
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(8.dp)
+                .background(PanelBg.copy(alpha = 0.86f), RoundedCornerShape(4.dp))
+                .border(1.dp, BorderColor, RoundedCornerShape(4.dp))
+                .padding(4.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
-            IconButton(onClick = onSwitchMapMode, modifier = Modifier.size(32.dp)) { Icon(Icons.Default.Layers, null, tint = AccentCyan, modifier = Modifier.size(16.dp)) }
-            IconButton(onClick = onToggleMeasure, modifier = Modifier.size(32.dp)) { Icon(Icons.Default.Straighten, null, tint = if (measureMode) AccentCyan else TextMain, modifier = Modifier.size(16.dp)) }
-            IconButton(onClick = {}, modifier = Modifier.size(32.dp)) { Icon(Icons.Default.GpsFixed, null, tint = TextMain, modifier = Modifier.size(16.dp)) }
-            IconButton(onClick = {}, modifier = Modifier.size(32.dp)) { Icon(Icons.Default.ZoomIn, null, tint = TextMain, modifier = Modifier.size(16.dp)) }
-            IconButton(onClick = {}, modifier = Modifier.size(32.dp)) { Icon(Icons.Default.ZoomOut, null, tint = TextMain, modifier = Modifier.size(16.dp)) }
-        }
-
-        Box(Modifier.align(Alignment.BottomCenter).padding(bottom = 8.dp)) {
-            Text("近程雷达-01 · 1.5km", color = AccentCyan.copy(alpha = 0.7f), fontSize = 10.sp)
+            IconButton(onClick = onSwitchMapMode, modifier = Modifier.size(32.dp)) {
+                Icon(Icons.Default.Layers, null, tint = AccentCyan, modifier = Modifier.size(16.dp))
+            }
+            IconButton(onClick = onToggleMeasure, modifier = Modifier.size(32.dp)) {
+                Icon(Icons.Default.Straighten, null, tint = if (measureMode) AccentCyan else TextMain, modifier = Modifier.size(16.dp))
+            }
+            IconButton(onClick = {
+                amap?.moveCamera(CameraUpdateFactory.newLatLng(LatLng(RADAR_LAT, RADAR_LNG)))
+            }, modifier = Modifier.size(32.dp)) {
+                Icon(Icons.Default.GpsFixed, null, tint = TextMain, modifier = Modifier.size(16.dp))
+            }
+            IconButton(onClick = {
+                amap?.moveCamera(CameraUpdateFactory.zoomIn())
+            }, modifier = Modifier.size(32.dp)) {
+                Icon(Icons.Default.ZoomIn, null, tint = TextMain, modifier = Modifier.size(16.dp))
+            }
+            IconButton(onClick = {
+                amap?.moveCamera(CameraUpdateFactory.zoomOut())
+            }, modifier = Modifier.size(32.dp)) {
+                Icon(Icons.Default.ZoomOut, null, tint = TextMain, modifier = Modifier.size(16.dp))
+            }
         }
 
         targets.find { it.id == selectedTargetId }?.let { target ->
-            TargetPopup(target, onDismiss = { onTargetClick("") }, onMarkFalsePositive = onMarkFalsePositive, onSendCommand = onSendCommand)
+            TargetPopup(
+                target,
+                onDismiss = { onTargetClick("") },
+                onMarkFalsePositive = onMarkFalsePositive,
+                onSendCommand = onSendCommand
+            )
         }
     }
+}
+
+private fun buildRadarCoveragePolygon(): PolygonOptions {
+    val points = mutableListOf<LatLng>()
+    points.add(LatLng(RADAR_LAT, RADAR_LNG))
+    val startAngle = RADAR_AZIMUTH_CENTER - RADAR_SCAN_HALF
+    val endAngle = RADAR_AZIMUTH_CENTER + RADAR_SCAN_HALF
+    for (i in 0..30) {
+        val angleDeg = startAngle + (endAngle - startAngle) * i / 30.0
+        val angleRad = Math.toRadians(angleDeg)
+        val dLat = (RADAR_RANGE_M * cos(angleRad)) / METERS_PER_LAT_DEG
+        val dLng = (RADAR_RANGE_M * sin(angleRad)) / METERS_PER_LNG_DEG
+        points.add(LatLng(RADAR_LAT + dLat, RADAR_LNG + dLng))
+    }
+    points.add(LatLng(RADAR_LAT, RADAR_LNG))
+    return PolygonOptions()
+        .addAll(points)
+        .fillColor(android.graphics.Color.argb(55, 0, 200, 100))
+        .strokeColor(android.graphics.Color.argb(160, 0, 230, 120))
+        .strokeWidth(2f)
 }
 
 @Composable
@@ -281,3 +323,4 @@ private fun PopupAction(label: String, color: Color, onClick: () -> Unit) {
         colors = ButtonDefaults.outlinedButtonColors(contentColor = color)
     ) { Text(label, fontSize = 10.sp) }
 }
+

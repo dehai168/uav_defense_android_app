@@ -11,7 +11,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import java.time.LocalTime
+import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.util.UUID
 import kotlin.random.Random
@@ -140,6 +140,6 @@ class MainViewModel : ViewModel() {
     fun updateRadarSweep() { _radarSweepAngle.update { (it + 3f) % FULL_CIRCLE_DEGREES } }
 
     private fun updateCurrentTime() {
-        _currentTime.value = LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss"))
+        _currentTime.value = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
     }
 }

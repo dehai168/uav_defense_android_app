@@ -1,6 +1,5 @@
 package com.uav.defense.ui.components
 
-import android.net.Uri
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -43,6 +42,8 @@ import com.uav.defense.ui.theme.TextMain
 import kotlinx.coroutines.delay
 import kotlin.math.sin
 
+private const val VIDEO_URL = "https://dehai167-dd.oss-cn-shanghai.aliyuncs.com/test/output.mp4"
+
 @Composable
 fun VideoPanel(
     activeTarget: PadTarget?,
@@ -53,7 +54,6 @@ fun VideoPanel(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    var videoFailed by remember { mutableStateOf(false) }
     var recBlink by remember { mutableStateOf(true) }
     var tick by remember { mutableLongStateOf(0L) }
 
@@ -61,19 +61,9 @@ fun VideoPanel(
         ExoPlayer.Builder(context).build().apply {
             repeatMode = Player.REPEAT_MODE_ALL
             volume = 0f
-            val rawId = context.resources.getIdentifier("demo_video", "raw", context.packageName)
-            if (rawId != 0) {
-                setMediaItem(MediaItem.fromUri(Uri.parse("android.resource://${context.packageName}/$rawId")))
-                prepare()
-                playWhenReady = true
-            } else {
-                videoFailed = true
-            }
-            addListener(object : Player.Listener {
-                override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
-                    videoFailed = true
-                }
-            })
+            setMediaItem(MediaItem.fromUri(VIDEO_URL))
+            prepare()
+            playWhenReady = true
         }
     }
 
@@ -92,22 +82,20 @@ fun VideoPanel(
         }
     }
 
-    val yaw = activeTarget?.bearing ?: hostileTargets.firstOrNull()?.bearing ?: 0f
-    val pitch = activeTarget?.pitch ?: hostileTargets.firstOrNull()?.pitch ?: 0f
+    val pan = activeTarget?.bearing ?: hostileTargets.firstOrNull()?.bearing ?: 0f
+    val tilt = activeTarget?.pitch ?: hostileTargets.firstOrNull()?.pitch ?: 0f
     val activeCamera = cameras.firstOrNull { it.trackingStatus == "tracking" || it.trackingStatus == "locked" }
 
     Box(modifier = modifier.background(Color(0xFF020810)).pointerInput(Unit) { detectTapGestures(onDoubleTap = { onDoubleTap() }) }) {
-        if (!videoFailed) {
-            AndroidView(
-                factory = {
-                    PlayerView(it).apply {
-                        useController = false
-                        this.player = player
-                    }
-                },
-                modifier = Modifier.fillMaxSize()
-            )
-        }
+        AndroidView(
+            factory = {
+                PlayerView(it).apply {
+                    useController = false
+                    this.player = player
+                }
+            },
+            modifier = Modifier.fillMaxSize()
+        )
 
         Canvas(Modifier.fillMaxSize()) {
             var y = 0f
@@ -128,7 +116,7 @@ fun VideoPanel(
             val jitter = (sin(tick * 0.01) * 4).toFloat()
             val bx = cx - 40f + jitter
             val by = cy - 30f + jitter / 2f
-            val col = Color.White.copy(alpha = 0.7f)
+            val col = Color(0xFF00FF88).copy(alpha = 0.85f)
             val cl = 14f
             drawLine(col, Offset(bx, by), Offset(bx + cl, by), 1.5f)
             drawLine(col, Offset(bx, by), Offset(bx, by + cl), 1.5f)
@@ -141,22 +129,27 @@ fun VideoPanel(
         }
 
         Row(Modifier.align(Alignment.TopStart).padding(6.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            Box(Modifier.size(8.dp).background(if (recBlink) DangerRed else Color.Transparent, CircleShape))
-            Text("● REC $currentTime", color = Color.White, fontSize = 10.sp)
-        }
-
-        Row(Modifier.align(Alignment.TopEnd).padding(6.dp)) {
-            Text(activeCamera?.deviceName ?: "光电跟踪仪-01", color = AccentCyan, fontSize = 9.sp)
+            Box(
+                Modifier
+                    .size(8.dp)
+                    .background(if (recBlink) DangerRed else Color.Transparent, CircleShape)
+            )
+            Text("REC  $currentTime", color = Color.White, fontSize = 10.sp)
         }
 
         Row(
-            modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth().background(Color.Black.copy(alpha = 0.5f), RoundedCornerShape(0.dp)).padding(horizontal = 8.dp, vertical = 4.dp),
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .background(Color.Black.copy(alpha = 0.6f), RoundedCornerShape(0.dp))
+                .padding(horizontal = 8.dp, vertical = 4.dp),
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Text(activeCamera?.deviceName ?: "光电跟踪仪-01", color = TextMain, fontSize = 9.sp)
-            Text("偏航 ${"%.1f".format(yaw)}°", color = TextMain, fontSize = 9.sp)
-            Text("仰角 ${"%.1f".format(pitch)}°", color = TextMain, fontSize = 9.sp)
-            Text("码流 1080P/25FPS", color = TextMain, fontSize = 9.sp)
+            Text(activeCamera?.deviceName ?: "光电转台-01", color = TextMain, fontSize = 9.sp)
+            Text("转角 ${"%.1f".format(pan)}°", color = TextMain, fontSize = 9.sp)
+            Text("仰角 ${"%.1f".format(tilt)}°", color = TextMain, fontSize = 9.sp)
+            Text("码流 1080P / 25FPS", color = TextMain, fontSize = 9.sp)
         }
     }
 }
+
