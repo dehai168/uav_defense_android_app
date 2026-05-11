@@ -59,6 +59,9 @@ jobs:
           RELEASE_APK="$(echo "${RELEASE_APKS}" | grep -v 'unsigned' | head -n 1 || true)"
           if [ -z "${RELEASE_APK}" ]; then
             RELEASE_APK="$(echo "${RELEASE_APKS}" | head -n 1)"
+            echo "No signed release APK found; using available release artifact: ${RELEASE_APK}"
+          else
+            echo "Using signed release APK artifact: ${RELEASE_APK}"
           fi
 
           if [ -z "${RELEASE_APK}" ]; then
@@ -111,7 +114,7 @@ jobs:
               set -e
 
               if [ "${verify_status}" -eq 0 ]; then
-                # Expected apksigner output includes "certificate SHA-1 digest:" with build-tools 34.0.0.
+                # Expected apksigner output includes a "certificate SHA-1 digest:" line with build-tools 34.0.0.
                 sha1="$(echo "${verify_output}" | awk -F': ' '/certificate SHA-1 digest:/ {print $NF; exit}')"
                 if [ -n "${sha1}" ]; then
                   echo "${label} certificate SHA1: ${sha1}" >&2
