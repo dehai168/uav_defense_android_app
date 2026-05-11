@@ -17,7 +17,7 @@ env:
   ANDROID_BUILD_TOOLS: "34.0.0"
 
 jobs:
-  build-debug-apk:
+  build-apks:
     runs-on: ubuntu-latest
 
     steps:
@@ -41,14 +41,26 @@ jobs:
       - name: Grant execute permission for Gradle wrapper
         run: chmod +x gradlew
 
-      - name: Build debug APK
-        run: ./gradlew :app:assembleDebug
+      - name: Build debug and release APKs
+        run: ./gradlew :app:assembleDebug :app:assembleRelease
+
+      - name: Rename APKs with build variant suffix
+        run: |
+          mv app/build/outputs/apk/debug/app-debug.apk app/build/outputs/apk/debug/uav-defense-debug.apk
+          mv app/build/outputs/apk/release/app-release-unsigned.apk app/build/outputs/apk/release/uav-defense-release-unsigned.apk
 
       - name: Upload debug APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: app-debug-apk
-          path: app/build/outputs/apk/debug/*.apk
+          path: app/build/outputs/apk/debug/uav-defense-debug.apk
+          if-no-files-found: error
+
+      - name: Upload release APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-release-apk
+          path: app/build/outputs/apk/release/uav-defense-release-unsigned.apk
           if-no-files-found: error
 
       - name: Generate release tag
@@ -56,11 +68,13 @@ jobs:
         id: release_tag
         run: echo "tag=apk-${{ github.run_number }}-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
 
-      - name: Create GitHub release with APK
+      - name: Create GitHub release with APKs
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.release_tag.outputs.tag }}
           name: APK Build ${{ github.run_number }}
-          files: app/build/outputs/apk/debug/*.apk
+          files: |
+            app/build/outputs/apk/debug/uav-defense-debug.apk
+            app/build/outputs/apk/release/uav-defense-release-unsigned.apk
           generate_release_notes: true
