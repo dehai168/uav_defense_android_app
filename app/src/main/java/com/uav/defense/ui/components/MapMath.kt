@@ -1,7 +1,6 @@
 package com.uav.defense.ui.components
 
 import androidx.compose.ui.geometry.Offset
-import kotlin.math.atan2
 import kotlin.math.cos
 import kotlin.math.sin
 import kotlin.math.sqrt

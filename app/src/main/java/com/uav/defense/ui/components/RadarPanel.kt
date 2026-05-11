@@ -29,7 +29,6 @@ import com.uav.defense.ui.theme.HostileOrange
 import com.uav.defense.ui.theme.NeutralOrange
 import com.uav.defense.ui.theme.RadarGreen
 import kotlin.math.min
-import kotlin.math.sin
 
 @Composable
 fun RadarPanel(

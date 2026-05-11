@@ -19,6 +19,13 @@ import kotlin.random.Random
 data class ToastData(val id: String, val message: String, val type: String)
 
 class MainViewModel : ViewModel() {
+    companion object {
+        private const val FULL_CIRCLE_DEGREES = 360f
+        private const val MAX_BEARING_DELTA = 2f
+        private const val MAX_DISTANCE_DELTA = 0.015f
+        private const val MIN_DISTANCE_KM = 0.3f
+        private const val MAX_DISTANCE_KM = 1.5f
+    }
     private val _targets = MutableStateFlow(MockData.targets)
     val targets: StateFlow<List<PadTarget>> = _targets.asStateFlow()
 
@@ -121,14 +128,16 @@ class MainViewModel : ViewModel() {
     fun updateTargetPositions() {
         _targets.update { list ->
             list.map {
-                val bearing = (it.bearing + Random.nextFloat() * 4f - 2f + 360f) % 360f
-                val distance = (it.distance + Random.nextFloat() * 0.03f - 0.015f).coerceIn(0.3f, 1.5f)
+                val bearingDelta = Random.nextFloat() * (MAX_BEARING_DELTA * 2f) - MAX_BEARING_DELTA
+                val distanceDelta = Random.nextFloat() * (MAX_DISTANCE_DELTA * 2f) - MAX_DISTANCE_DELTA
+                val bearing = (it.bearing + bearingDelta + FULL_CIRCLE_DEGREES) % FULL_CIRCLE_DEGREES
+                val distance = (it.distance + distanceDelta).coerceIn(MIN_DISTANCE_KM, MAX_DISTANCE_KM)
                 it.copy(bearing = bearing, distance = distance)
             }
         }
     }
 
-    fun updateRadarSweep() { _radarSweepAngle.update { (it + 3f) % 360f } }
+    fun updateRadarSweep() { _radarSweepAngle.update { (it + 3f) % FULL_CIRCLE_DEGREES } }
 
     private fun updateCurrentTime() {
         _currentTime.value = LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss"))
