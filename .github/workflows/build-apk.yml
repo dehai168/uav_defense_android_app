@@ -55,9 +55,10 @@ jobs:
             exit 1
           fi
 
-          RELEASE_APK="$(find app/build/outputs/apk/release -maxdepth 1 -name '*.apk' | sort | grep -v 'unsigned' | head -n 1 || true)"
+          RELEASE_APKS="$(find app/build/outputs/apk/release -maxdepth 1 -name '*.apk' | sort)"
+          RELEASE_APK="$(echo "${RELEASE_APKS}" | grep -v 'unsigned' | head -n 1 || true)"
           if [ -z "${RELEASE_APK}" ]; then
-            RELEASE_APK="$(find app/build/outputs/apk/release -maxdepth 1 -name '*.apk' | sort | head -n 1)"
+            RELEASE_APK="$(echo "${RELEASE_APKS}" | head -n 1)"
           fi
 
           if [ -z "${RELEASE_APK}" ]; then
@@ -97,11 +98,10 @@ jobs:
           print_sha1() {
             local label="$1"
             local apk="$2"
-            local output_var="$3"
             local sha1=""
 
-            echo "::group::${label} APK SHA1"
-            echo "${label} APK path: ${apk}"
+            echo "::group::${label} APK SHA1" >&2
+            echo "${label} APK path: ${apk}" >&2
 
             if [ -x "${APKSIGNER}" ]; then
               set +e
@@ -111,35 +111,34 @@ jobs:
               set -e
 
               if [ "${verify_status}" -eq 0 ]; then
+                # Expected apksigner output includes "certificate SHA-1 digest:" with build-tools 34.0.0.
                 sha1="$(echo "${verify_output}" | awk -F': ' '/certificate SHA-1 digest:/ {print $NF; exit}')"
                 if [ -n "${sha1}" ]; then
-                  echo "${label} certificate SHA1: ${sha1}"
-                  echo "::notice title=${label} SHA1::${sha1}"
+                  echo "${label} certificate SHA1: ${sha1}" >&2
+                  echo "::notice title=${label} SHA1::${sha1}" >&2
                 else
-                  echo "${verify_output}"
+                  echo "${verify_output}" >&2
                   sha1="UNKNOWN"
-                  echo "::warning title=${label} SHA1::Could not parse SHA1 from apksigner output"
+                  echo "::warning title=${label} SHA1::Could not parse SHA1 from apksigner output" >&2
                 fi
               else
-                echo "${verify_output}"
+                echo "${verify_output}" >&2
                 sha1="UNSIGNED"
-                echo "::warning title=${label} SHA1::UNSIGNED (no APK signing certificate found)"
+                echo "::warning title=${label} SHA1::UNSIGNED (no APK signing certificate found)" >&2
               fi
             else
-              echo "apksigner not found in runner environment."
+              echo "apksigner not found in runner environment." >&2
               sha1="UNKNOWN"
-              echo "::warning title=${label} SHA1::UNKNOWN (apksigner not available)"
+              echo "::warning title=${label} SHA1::UNKNOWN (apksigner not available)" >&2
             fi
 
-            echo "${label} SHA1 final result: ${sha1}"
-            printf -v "${output_var}" '%s' "${sha1}"
-            echo "::endgroup::"
+            echo "${label} SHA1 final result: ${sha1}" >&2
+            echo "::endgroup::" >&2
+            echo "${sha1}"
           }
 
-          DEBUG_SHA1=""
-          RELEASE_SHA1=""
-          print_sha1 "Debug" "${DEBUG_APK}" DEBUG_SHA1
-          print_sha1 "Release" "${RELEASE_APK}" RELEASE_SHA1
+          DEBUG_SHA1="$(print_sha1 "Debug" "${DEBUG_APK}")"
+          RELEASE_SHA1="$(print_sha1 "Release" "${RELEASE_APK}")"
 
           {
             echo "### APK signature SHA1"
