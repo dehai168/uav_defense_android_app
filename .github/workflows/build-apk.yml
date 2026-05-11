@@ -49,6 +49,7 @@ jobs:
         run: |
           set -euo pipefail
 
+          # Debug output directory is expected to contain one APK; when multiple exist, choose first sorted candidate.
           DEBUG_APK="$(find app/build/outputs/apk/debug -maxdepth 1 -name '*.apk' | sort | head -n 1)"
           if [ -z "${DEBUG_APK}" ]; then
             echo "Debug APK not found."
@@ -59,17 +60,26 @@ jobs:
           echo "Discovered release APK candidates:"
           echo "${RELEASE_APKS}"
 
-          SIGNED_RELEASE_APKS="$(echo "${RELEASE_APKS}" | grep -v 'unsigned' || true)"
-          SIGNED_RELEASE_COUNT="$(echo "${SIGNED_RELEASE_APKS}" | sed '/^$/d' | wc -l)"
-          RELEASE_APK="$(echo "${SIGNED_RELEASE_APKS}" | head -n 1 || true)"
-          if [ -z "${RELEASE_APK}" ]; then
-            RELEASE_APK="$(echo "${RELEASE_APKS}" | head -n 1)"
-            echo "No signed release APK found; using available release artifact: ${RELEASE_APK}"
+          RELEASE_APK="$(echo "${RELEASE_APKS}" | head -n 1)"
+          RELEASE_SIGNED="false"
+          SDK_ROOT="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-}}"
+          APKSIGNER=""
+          if [ -n "${SDK_ROOT}" ] && [ -x "${SDK_ROOT}/build-tools/${ANDROID_BUILD_TOOLS}/apksigner" ]; then
+            APKSIGNER="${SDK_ROOT}/build-tools/${ANDROID_BUILD_TOOLS}/apksigner"
           else
-            echo "Using signed release APK artifact: ${RELEASE_APK}"
-            if [ "${SIGNED_RELEASE_COUNT}" -gt 1 ]; then
-              echo "Multiple signed release APKs found; selected first sorted candidate: ${RELEASE_APK}"
-            fi
+            APKSIGNER="$(command -v apksigner || true)"
+          fi
+
+          if [ -x "${APKSIGNER}" ]; then
+            while IFS= read -r candidate; do
+              if [ -n "${candidate}" ] && "${APKSIGNER}" verify "${candidate}" >/dev/null 2>&1; then
+                RELEASE_APK="${candidate}"
+                RELEASE_SIGNED="true"
+                break
+              fi
+            done <<< "${RELEASE_APKS}"
+          else
+            echo "apksigner not available in prepare step; release APK signing detection falls back to filename/path ordering."
           fi
 
           if [ -z "${RELEASE_APK}" ]; then
@@ -77,12 +87,18 @@ jobs:
             exit 1
           fi
 
+          if [ "${RELEASE_SIGNED}" = "true" ]; then
+            echo "Using signed release APK artifact: ${RELEASE_APK}"
+          else
+            echo "No signed release APK found; using available release artifact: ${RELEASE_APK}"
+          fi
+
           ASSET_DIR="app/build/outputs/apk/ci-assets"
           mkdir -p "${ASSET_DIR}"
 
           DEBUG_ASSET="${ASSET_DIR}/uav-defense-debug.apk"
           RELEASE_ASSET="${ASSET_DIR}/uav-defense-release.apk"
-          if [[ "$(basename "${RELEASE_APK}")" == *unsigned* ]]; then
+          if [ "${RELEASE_SIGNED}" != "true" ]; then
             RELEASE_ASSET="${ASSET_DIR}/uav-defense-release-unsigned.apk"
           fi
 
@@ -120,7 +136,7 @@ jobs:
               verify_output="$("${APKSIGNER}" verify --print-certs "${apk}" 2>&1)" || verify_status=$?
 
               if [ "${verify_status}" -eq 0 ]; then
-                # Expected apksigner output includes a "certificate SHA-1 digest:" line with build-tools 34.0.0.
+                # Expected apksigner output includes a "certificate SHA-1 digest:" line for the configured build-tools version.
                 sha1="$(echo "${verify_output}" | awk -F': ' '/certificate SHA-1 digest:/ {print $NF; exit}')"
                 if echo "${sha1}" | grep -Eq '^([A-Fa-f0-9]{2}:){19}[A-Fa-f0-9]{2}$'; then
                   echo "${label} certificate SHA1: ${sha1}" >&2
