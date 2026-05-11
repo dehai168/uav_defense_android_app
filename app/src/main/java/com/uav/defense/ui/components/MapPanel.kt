@@ -169,7 +169,10 @@ fun MapPanel(
                 drawCircle(color, r, pos)
                 if (selectedTargetId == t.id) drawCircle(AccentCyan, r + 4f, pos, style = Stroke(2f))
                 val label = textMeasurer.measure("目标${t.id.takeLast(2)}", style = TextStyle(fontSize = 10.sp, color = color))
-                drawText(label, Offset(pos.x - label.size.width / 2f, pos.y - r - 18f))
+                drawText(
+                    textLayoutResult = label,
+                    topLeft = Offset(pos.x - label.size.width / 2f, pos.y - r - 18f)
+                )
             }
 
             if (measureMode && measurePoints.isNotEmpty()) {
@@ -180,13 +183,19 @@ fun MapPanel(
                     measureDistance?.let {
                         val text = textMeasurer.measure("%.2fkm".format(it), style = TextStyle(color = AccentCyan, fontSize = 11.sp, fontWeight = FontWeight.Bold))
                         val mid = Offset((measurePoints[0].x + measurePoints[1].x) / 2f, (measurePoints[0].y + measurePoints[1].y) / 2f)
-                        drawText(text, Offset(mid.x - text.size.width / 2f, mid.y - 20f))
+                        drawText(
+                            textLayoutResult = text,
+                            topLeft = Offset(mid.x - text.size.width / 2f, mid.y - 20f)
+                        )
                     }
                 }
             }
 
             val centerText = textMeasurer.measure("雷", style = TextStyle(fontSize = 14.sp, color = Color.Black, fontWeight = FontWeight.Bold))
-            drawText(centerText, Offset(cx - centerText.size.width / 2f, cy - centerText.size.height / 2f))
+            drawText(
+                textLayoutResult = centerText,
+                topLeft = Offset(cx - centerText.size.width / 2f, cy - centerText.size.height / 2f)
+            )
         }
 
         Box(Modifier.align(Alignment.TopEnd).padding(8.dp).background(PanelBg.copy(alpha = 0.86f), RoundedCornerShape(4.dp)).border(1.dp, BorderColor, RoundedCornerShape(4.dp)).padding(horizontal = 8.dp, vertical = 4.dp)) {
