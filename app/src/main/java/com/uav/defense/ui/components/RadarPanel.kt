@@ -69,7 +69,10 @@ fun RadarPanel(
                 val r = maxR * (i / 3f)
                 drawCircle(RadarGreen.copy(alpha = 0.25f), r, Offset(cx, cy), style = Stroke(1f))
                 val t = textMeasurer.measure("${i * 0.5}km", style = TextStyle(fontSize = 8.sp, color = RadarGreen.copy(alpha = 0.5f)))
-                drawText(t, Offset(cx + 3f, cy - r - t.size.height))
+                drawText(
+                    textLayoutResult = t,
+                    topLeft = Offset(cx + 3f, cy - r - t.size.height)
+                )
             }
 
             for (deg in 0 until 360 step 15) {
@@ -77,7 +80,10 @@ fun RadarPanel(
                 val lx = cx + (maxR + 14f) * kotlin.math.sin(rad).toFloat()
                 val ly = cy - (maxR + 14f) * kotlin.math.cos(rad).toFloat()
                 val t = textMeasurer.measure("$deg", style = TextStyle(fontSize = 7.sp, color = RadarGreen.copy(alpha = 0.5f)))
-                drawText(t, Offset(lx - t.size.width / 2f, ly - t.size.height / 2f))
+                drawText(
+                    textLayoutResult = t,
+                    topLeft = Offset(lx - t.size.width / 2f, ly - t.size.height / 2f)
+                )
             }
 
             for (i in 0..5) {
@@ -108,11 +114,17 @@ fun RadarPanel(
                 drawCircle(c, 5f, p)
                 if (selectedTargetId == t.id) drawCircle(AccentCyan, 8f, p, style = Stroke(1.5f))
                 val label = textMeasurer.measure("T${t.id.takeLast(2)}", style = TextStyle(fontSize = 8.sp, color = c))
-                drawText(label, Offset(p.x + 6f, p.y - label.size.height / 2f))
+                drawText(
+                    textLayoutResult = label,
+                    topLeft = Offset(p.x + 6f, p.y - label.size.height / 2f)
+                )
             }
 
             val n = textMeasurer.measure("N", style = TextStyle(fontSize = 11.sp, color = RadarGreen, fontWeight = FontWeight.Bold))
-            drawText(n, Offset(cx - n.size.width / 2f, cy - maxR - 26f))
+            drawText(
+                textLayoutResult = n,
+                topLeft = Offset(cx - n.size.width / 2f, cy - maxR - 26f)
+            )
             drawCircle(RadarGreen, 4f, Offset(cx, cy))
         }
 
