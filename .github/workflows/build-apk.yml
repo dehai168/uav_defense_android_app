@@ -44,23 +44,143 @@ jobs:
       - name: Build debug and release APKs
         run: ./gradlew :app:assembleDebug :app:assembleRelease
 
-      - name: Rename APKs with build variant suffix
+      - name: Prepare APK assets
+        id: prepare_apks
         run: |
-          mv app/build/outputs/apk/debug/app-debug.apk app/build/outputs/apk/debug/uav-defense-debug.apk
-          mv app/build/outputs/apk/release/app-release-unsigned.apk app/build/outputs/apk/release/uav-defense-release-unsigned.apk
+          set -euo pipefail
 
-      - name: Upload debug APK artifact
+          # Debug output directory is expected to contain one APK; if multiple exist, choose the first alphabetically sorted path.
+          DEBUG_APK="$(find app/build/outputs/apk/debug -maxdepth 1 -name '*.apk' | sort | head -n 1)"
+          if [ -z "${DEBUG_APK}" ]; then
+            echo "Debug APK not found."
+            exit 1
+          fi
+
+          RELEASE_APKS="$(find app/build/outputs/apk/release -maxdepth 1 -name '*.apk' | sort)"
+          echo "Discovered release APK candidates:"
+          echo "${RELEASE_APKS}"
+
+          RELEASE_APK="$(echo "${RELEASE_APKS}" | head -n 1)"
+          RELEASE_SIGNED="false"
+          SDK_ROOT="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-}}"
+          APKSIGNER=""
+          if [ -n "${SDK_ROOT}" ] && [ -x "${SDK_ROOT}/build-tools/${ANDROID_BUILD_TOOLS}/apksigner" ]; then
+            APKSIGNER="${SDK_ROOT}/build-tools/${ANDROID_BUILD_TOOLS}/apksigner"
+          else
+            APKSIGNER="$(command -v apksigner || true)"
+          fi
+
+          if [ -n "${APKSIGNER}" ] && [ -x "${APKSIGNER}" ]; then
+            while IFS= read -r candidate; do
+              if [ -n "${candidate}" ] && "${APKSIGNER}" verify "${candidate}" >/dev/null 2>&1; then
+                RELEASE_APK="${candidate}"
+                RELEASE_SIGNED="true"
+                break
+              fi
+            done <<< "${RELEASE_APKS}"
+          else
+            echo "apksigner not available in prepare step; release APK signing detection falls back to filename/path ordering."
+          fi
+
+          if [ -z "${RELEASE_APK}" ]; then
+            echo "Release APK not found."
+            exit 1
+          fi
+
+          if [ "${RELEASE_SIGNED}" = "true" ]; then
+            echo "Using signed release APK artifact: ${RELEASE_APK}"
+          else
+            echo "No signed release APK found; using available release artifact: ${RELEASE_APK}"
+          fi
+
+          ASSET_DIR="app/build/outputs/apk/ci-assets"
+          mkdir -p "${ASSET_DIR}"
+
+          DEBUG_ASSET="${ASSET_DIR}/uav-defense-debug.apk"
+          RELEASE_ASSET="${ASSET_DIR}/uav-defense-release.apk"
+          if [ "${RELEASE_SIGNED}" != "true" ]; then
+            RELEASE_ASSET="${ASSET_DIR}/uav-defense-release-unsigned.apk"
+          fi
+
+          cp "${DEBUG_APK}" "${DEBUG_ASSET}"
+          cp "${RELEASE_APK}" "${RELEASE_ASSET}"
+
+          echo "debug_apk=${DEBUG_ASSET}" >> "$GITHUB_OUTPUT"
+          echo "release_apk=${RELEASE_ASSET}" >> "$GITHUB_OUTPUT"
+
+      - name: Report APK signing SHA1
+        run: |
+          set -euo pipefail
+
+          DEBUG_APK="${{ steps.prepare_apks.outputs.debug_apk }}"
+          RELEASE_APK="${{ steps.prepare_apks.outputs.release_apk }}"
+          SDK_ROOT="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-}}"
+          APKSIGNER=""
+          if [ -n "${SDK_ROOT}" ] && [ -x "${SDK_ROOT}/build-tools/${ANDROID_BUILD_TOOLS}/apksigner" ]; then
+            APKSIGNER="${SDK_ROOT}/build-tools/${ANDROID_BUILD_TOOLS}/apksigner"
+          else
+            APKSIGNER="$(command -v apksigner || true)"
+          fi
+
+          print_sha1() {
+            local label="$1"
+            local apk="$2"
+            local sha1=""
+
+            echo "::group::${label} APK SHA1" >&2
+            echo "${label} APK path: ${apk}" >&2
+
+            if [ -n "${APKSIGNER}" ] && [ -x "${APKSIGNER}" ]; then
+              local verify_output
+              local verify_status=0
+              verify_output="$("${APKSIGNER}" verify --print-certs "${apk}" 2>&1)" || verify_status=$?
+
+              if [ "${verify_status}" -eq 0 ]; then
+                # Expected apksigner output includes "certificate SHA-1 digest:" for the configured build-tools version.
+                sha1="$(echo "${verify_output}" | awk -F': ' '/certificate SHA-1 digest:/ {print $NF; exit}')"
+                # SHA1 is 20 bytes => 20 colon-separated hex pairs.
+                if echo "${sha1}" | grep -Eq '^([A-Fa-f0-9]{2}:){19}[A-Fa-f0-9]{2}$'; then
+                  echo "${label} certificate SHA1: ${sha1}" >&2
+                  echo "::notice title=${label} SHA1::${sha1}" >&2
+                else
+                  echo "${verify_output}" >&2
+                  sha1="UNKNOWN"
+                  echo "::warning title=${label} SHA1::Could not parse SHA1 from apksigner output" >&2
+                fi
+              else
+                echo "${verify_output}" >&2
+                sha1="UNSIGNED"
+                echo "::warning title=${label} SHA1::UNSIGNED (no APK signing certificate found)" >&2
+              fi
+            else
+              echo "apksigner not found in runner environment." >&2
+              sha1="UNKNOWN"
+              echo "::warning title=${label} SHA1::UNKNOWN (apksigner not available)" >&2
+            fi
+
+            echo "${label} SHA1 final result: ${sha1}" >&2
+            echo "::endgroup::" >&2
+            echo "${sha1}"
+          }
+
+          DEBUG_SHA1="$(print_sha1 "Debug" "${DEBUG_APK}")"
+          RELEASE_SHA1="$(print_sha1 "Release" "${RELEASE_APK}")"
+
+          {
+            echo "### APK signature SHA1"
+            echo "- Debug APK: \`${DEBUG_APK}\`"
+            echo "- Release APK: \`${RELEASE_APK}\`"
+            echo "- Debug SHA1: \`${DEBUG_SHA1}\`"
+            echo "- Release SHA1: \`${RELEASE_SHA1}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload APK artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: app-debug-apk
-          path: app/build/outputs/apk/debug/uav-defense-debug.apk
-          if-no-files-found: error
-
-      - name: Upload release APK artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: app-release-apk
-          path: app/build/outputs/apk/release/uav-defense-release-unsigned.apk
+          name: app-apks
+          path: |
+            ${{ steps.prepare_apks.outputs.debug_apk }}
+            ${{ steps.prepare_apks.outputs.release_apk }}
           if-no-files-found: error
 
       - name: Generate release tag
@@ -75,6 +195,6 @@ jobs:
           tag_name: ${{ steps.release_tag.outputs.tag }}
           name: APK Build ${{ github.run_number }}
           files: |
-            app/build/outputs/apk/debug/uav-defense-debug.apk
-            app/build/outputs/apk/release/uav-defense-release-unsigned.apk
+            ${{ steps.prepare_apks.outputs.debug_apk }}
+            ${{ steps.prepare_apks.outputs.release_apk }}
           generate_release_notes: true
