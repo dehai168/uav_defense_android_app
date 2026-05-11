@@ -3,10 +3,10 @@ name: Build APK
 on:
   push:
     branches:
-      - master
+      - main
   pull_request:
     branches:
-      - master
+      - main
   workflow_dispatch:
 
 permissions:
@@ -52,12 +52,12 @@ jobs:
           if-no-files-found: error
 
       - name: Generate release tag
-        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         id: release_tag
         run: echo "tag=apk-${{ github.run_number }}-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
 
       - name: Create GitHub release with APK
-        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.release_tag.outputs.tag }}
