@@ -14,5 +14,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = 'uav_defense_android_app'
+rootProject.name = "UavDefense"
 include ':app'

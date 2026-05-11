@@ -1,1 +1,1 @@
-# Intentionally left minimal for starter project.
+# no custom rules
