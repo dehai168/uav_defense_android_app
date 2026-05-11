@@ -146,7 +146,6 @@ fun MapPanel(
                                 false
                             }
                         }
-                        setOnMapDoubleClickListener { onDoubleTap() }
                         setOnMapClickListener { onTargetClick("") }
                     }
                 }
