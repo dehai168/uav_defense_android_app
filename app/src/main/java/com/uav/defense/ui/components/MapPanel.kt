@@ -71,7 +71,8 @@ private const val RADAR_LNG = 116.397428
 private const val RADAR_RANGE_M = 1800.0
 private const val RADAR_AZIMUTH_CENTER = 48.0
 private const val RADAR_SCAN_HALF = 60.0
-private val METERS_PER_LNG_DEG = 111000.0 * cos(Math.toRadians(RADAR_LAT))
+private const val METERS_PER_LAT_DEG = 111000.0
+private val METERS_PER_LNG_DEG = METERS_PER_LAT_DEG * cos(Math.toRadians(RADAR_LAT))
 
 @Composable
 fun MapPanel(
@@ -91,7 +92,7 @@ fun MapPanel(
 ) {
     val context = LocalContext.current
     val lifecycle = LocalLifecycleOwner.current.lifecycle
-    val mapView = remember { MapView(context).apply { onCreate(null) } }
+    val mapView = remember { MapView(context).apply { onCreate(Bundle()) } }
     var amap by remember { mutableStateOf<AMap?>(null) }
     val markerMap = remember { mutableMapOf<String, Marker>() }
 
@@ -252,7 +253,7 @@ private fun buildRadarCoveragePolygon(): PolygonOptions {
     for (i in 0..30) {
         val angleDeg = startAngle + (endAngle - startAngle) * i / 30.0
         val angleRad = Math.toRadians(angleDeg)
-        val dLat = (RADAR_RANGE_M * cos(angleRad)) / 111000.0
+        val dLat = (RADAR_RANGE_M * cos(angleRad)) / METERS_PER_LAT_DEG
         val dLng = (RADAR_RANGE_M * sin(angleRad)) / METERS_PER_LNG_DEG
         points.add(LatLng(RADAR_LAT + dLat, RADAR_LNG + dLng))
     }
