@@ -1,3 +1,5 @@
 <resources>
-    <style name="Theme.UavDefense" parent="android:Theme.Material.NoTitleBar.Fullscreen" />
+    <style name="Theme.UavDefense" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <item name="android:windowFullscreen">true</item>
+    </style>
 </resources>
