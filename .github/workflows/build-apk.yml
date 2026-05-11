@@ -56,12 +56,20 @@ jobs:
           fi
 
           RELEASE_APKS="$(find app/build/outputs/apk/release -maxdepth 1 -name '*.apk' | sort)"
-          RELEASE_APK="$(echo "${RELEASE_APKS}" | grep -v 'unsigned' | head -n 1 || true)"
+          echo "Discovered release APK candidates:"
+          echo "${RELEASE_APKS}"
+
+          SIGNED_RELEASE_APKS="$(echo "${RELEASE_APKS}" | grep -v 'unsigned' || true)"
+          SIGNED_RELEASE_COUNT="$(echo "${SIGNED_RELEASE_APKS}" | sed '/^$/d' | wc -l)"
+          RELEASE_APK="$(echo "${SIGNED_RELEASE_APKS}" | head -n 1 || true)"
           if [ -z "${RELEASE_APK}" ]; then
             RELEASE_APK="$(echo "${RELEASE_APKS}" | head -n 1)"
             echo "No signed release APK found; using available release artifact: ${RELEASE_APK}"
           else
             echo "Using signed release APK artifact: ${RELEASE_APK}"
+            if [ "${SIGNED_RELEASE_COUNT}" -gt 1 ]; then
+              echo "Multiple signed release APKs found; selected first sorted candidate: ${RELEASE_APK}"
+            fi
           fi
 
           if [ -z "${RELEASE_APK}" ]; then
@@ -114,7 +122,7 @@ jobs:
               if [ "${verify_status}" -eq 0 ]; then
                 # Expected apksigner output includes a "certificate SHA-1 digest:" line with build-tools 34.0.0.
                 sha1="$(echo "${verify_output}" | awk -F': ' '/certificate SHA-1 digest:/ {print $NF; exit}')"
-                if echo "${sha1}" | grep -Eq '^([A-Fa-f0-9]{2}:){19}[A-Fa-f0-9]{2}$|^[A-Fa-f0-9]{40}$'; then
+                if echo "${sha1}" | grep -Eq '^([A-Fa-f0-9]{2}:){19}[A-Fa-f0-9]{2}$'; then
                   echo "${label} certificate SHA1: ${sha1}" >&2
                   echo "::notice title=${label} SHA1::${sha1}" >&2
                 else
