@@ -49,18 +49,15 @@ jobs:
         run: |
           set -euo pipefail
 
-          DEBUG_APK="$(find app/build/outputs/apk/debug -maxdepth 1 -name '*.apk' | head -n 1)"
+          DEBUG_APK="$(find app/build/outputs/apk/debug -maxdepth 1 -name '*.apk' | sort | head -n 1)"
           if [ -z "${DEBUG_APK}" ]; then
             echo "Debug APK not found."
             exit 1
           fi
 
-          if [ -f app/build/outputs/apk/release/app-release.apk ]; then
-            RELEASE_APK="app/build/outputs/apk/release/app-release.apk"
-          elif [ -f app/build/outputs/apk/release/app-release-unsigned.apk ]; then
-            RELEASE_APK="app/build/outputs/apk/release/app-release-unsigned.apk"
-          else
-            RELEASE_APK="$(find app/build/outputs/apk/release -maxdepth 1 -name '*.apk' | head -n 1)"
+          RELEASE_APK="$(find app/build/outputs/apk/release -maxdepth 1 -name '*.apk' | sort | grep -v 'unsigned' | head -n 1 || true)"
+          if [ -z "${RELEASE_APK}" ]; then
+            RELEASE_APK="$(find app/build/outputs/apk/release -maxdepth 1 -name '*.apk' | sort | head -n 1)"
           fi
 
           if [ -z "${RELEASE_APK}" ]; then
@@ -114,7 +111,7 @@ jobs:
               set -e
 
               if [ "${verify_status}" -eq 0 ]; then
-                sha1="$(echo "${verify_output}" | sed -n 's/.*certificate SHA-1 digest: \(.*\)$/\1/p' | head -n 1)"
+                sha1="$(echo "${verify_output}" | awk -F': ' '/certificate SHA-1 digest:/ {print $NF; exit}')"
                 if [ -n "${sha1}" ]; then
                   echo "${label} certificate SHA1: ${sha1}"
                   echo "::notice title=${label} SHA1::${sha1}"
