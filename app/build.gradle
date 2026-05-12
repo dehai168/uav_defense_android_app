@@ -6,8 +6,8 @@ plugins {
 def releaseKeystorePath = 'app/signing/release.jks'
 def releaseKeystoreFile = rootProject.file(releaseKeystorePath)
 def releaseKeyAlias = (findProperty('RELEASE_KEY_ALIAS') ?: System.getenv('RELEASE_KEY_ALIAS') ?: 'uav_defense').toString()
-def releaseStorePassword = (findProperty('RELEASE_STORE_PASSWORD') ?: System.getenv('RELEASE_STORE_PASSWORD') ?: 'changeit123').toString()
-def releaseKeyPassword = (findProperty('RELEASE_KEY_PASSWORD') ?: System.getenv('RELEASE_KEY_PASSWORD') ?: 'changeit123').toString()
+def releaseStorePassword = (findProperty('RELEASE_STORE_PASSWORD') ?: System.getenv('RELEASE_STORE_PASSWORD') ?: '123456').toString()
+def releaseKeyPassword = (findProperty('RELEASE_KEY_PASSWORD') ?: System.getenv('RELEASE_KEY_PASSWORD') ?: '123456').toString()
 
 android {
     namespace 'com.uav.defense'
