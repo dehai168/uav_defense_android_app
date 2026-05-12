@@ -321,7 +321,6 @@ private fun buildRadarSweepLine(
         .add(LatLng(RADAR_LAT, RADAR_LNG), pointAt(sweepAngle, distanceMeters))
         .strokeColor(android.graphics.Color.argb(strokeAlpha.coerceIn(0, 255), 80, 255, 180))
         .width(strokeWidth)
-        .setDottedLine(false)
 }
 
 private fun targetDistanceColor(distanceKm: Float): Int {
