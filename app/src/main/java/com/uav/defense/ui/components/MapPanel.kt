@@ -47,14 +47,14 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
-import com.amap.api.maps.AMap
-import com.amap.api.maps.CameraUpdateFactory
-import com.amap.api.maps.MapView
-import com.amap.api.maps.model.BitmapDescriptorFactory
-import com.amap.api.maps.model.LatLng
-import com.amap.api.maps.model.Marker
-import com.amap.api.maps.model.MarkerOptions
-import com.amap.api.maps.model.PolygonOptions
+import com.amap.api.maps2d.AMap
+import com.amap.api.maps2d.CameraUpdateFactory
+import com.amap.api.maps2d.MapView
+import com.amap.api.maps2d.model.BitmapDescriptorFactory
+import com.amap.api.maps2d.model.LatLng
+import com.amap.api.maps2d.model.Marker
+import com.amap.api.maps2d.model.MarkerOptions
+import com.amap.api.maps2d.model.PolygonOptions
 import com.uav.defense.data.models.PadTarget
 import com.uav.defense.ui.theme.AccentCyan
 import com.uav.defense.ui.theme.AmberColor
@@ -322,4 +322,3 @@ private fun PopupAction(label: String, color: Color, onClick: () -> Unit) {
         colors = ButtonDefaults.outlinedButtonColors(contentColor = color)
     ) { Text(label, fontSize = 10.sp) }
 }
-
