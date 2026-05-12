@@ -57,7 +57,7 @@ fun ScanDialog(
     }
 
     Dialog(onDismissRequest = onClose) {
-        Column(Modifier.width(520.dp).background(PanelBg, RoundedCornerShape(12.dp)).border(1.dp, BorderColor, RoundedCornerShape(12.dp)).padding(16.dp)) {
+        Column(Modifier.fillMaxWidth(0.6f).background(PanelBg, RoundedCornerShape(12.dp)).border(1.dp, BorderColor, RoundedCornerShape(12.dp)).padding(16.dp)) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 Text("扫描结果", color = AccentCyan, fontSize = 16.sp, fontWeight = FontWeight.Bold)
                 IconButton(onClick = onClose) { Icon(Icons.Default.Close, null, tint = TextMain) }

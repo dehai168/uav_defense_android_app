@@ -14,6 +14,8 @@ import kotlinx.coroutines.launch
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.util.UUID
+import kotlin.math.cos
+import kotlin.math.sin
 import kotlin.random.Random
 
 data class ToastData(val id: String, val message: String, val type: String)
@@ -25,6 +27,11 @@ class MainViewModel : ViewModel() {
         private const val MAX_DISTANCE_DELTA = 0.015f
         private const val MIN_DISTANCE_KM = 0.3f
         private const val MAX_DISTANCE_KM = 1.5f
+        private const val RADAR_LAT = 39.909230
+        private const val RADAR_LNG = 116.397428
+        private const val METERS_PER_LAT_DEG = 111000.0
+        // Longitude-degree meter length depends on latitude; computed once for radar latitude.
+        private val METERS_PER_LNG_DEG: Double = METERS_PER_LAT_DEG * cos(Math.toRadians(RADAR_LAT))
     }
     private val _targets = MutableStateFlow(MockData.targets)
     val targets: StateFlow<List<PadTarget>> = _targets.asStateFlow()
@@ -95,7 +102,6 @@ class MainViewModel : ViewModel() {
         _currentMapMode.update {
             when (it) {
                 "卫星图" -> "标准图"
-                "标准图" -> "暗色图"
                 else -> "卫星图"
             }
         }
@@ -132,7 +138,16 @@ class MainViewModel : ViewModel() {
                 val distanceDelta = Random.nextFloat() * (MAX_DISTANCE_DELTA * 2f) - MAX_DISTANCE_DELTA
                 val bearing = (it.bearing + bearingDelta + FULL_CIRCLE_DEGREES) % FULL_CIRCLE_DEGREES
                 val distance = (it.distance + distanceDelta).coerceIn(MIN_DISTANCE_KM, MAX_DISTANCE_KM)
-                it.copy(bearing = bearing, distance = distance)
+                val rad = Math.toRadians(bearing.toDouble())
+                val distanceMeters = distance * 1000.0
+                val dLat = (distanceMeters * cos(rad)) / METERS_PER_LAT_DEG
+                val dLng = (distanceMeters * sin(rad)) / METERS_PER_LNG_DEG
+                it.copy(
+                    bearing = bearing,
+                    distance = distance,
+                    lat = RADAR_LAT + dLat,
+                    lng = RADAR_LNG + dLng
+                )
             }
         }
     }

@@ -43,7 +43,7 @@ fun AnalysisDialog(targets: List<PadTarget>, onClose: () -> Unit) {
     val maxType = typeData.values.maxOrNull() ?: 1
 
     Dialog(onDismissRequest = onClose) {
-        Column(Modifier.width(520.dp).background(PanelBg, RoundedCornerShape(12.dp)).border(1.dp, BorderColor, RoundedCornerShape(12.dp)).padding(16.dp)) {
+        Column(Modifier.fillMaxWidth(0.6f).background(PanelBg, RoundedCornerShape(12.dp)).border(1.dp, BorderColor, RoundedCornerShape(12.dp)).padding(16.dp)) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 Text("统计分析", color = AccentCyan, fontWeight = FontWeight.Bold, fontSize = 16.sp)
                 IconButton(onClick = onClose) { Icon(Icons.Default.Close, null, tint = TextMain) }
