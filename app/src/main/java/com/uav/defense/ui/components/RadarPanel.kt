@@ -52,6 +52,11 @@ fun RadarPanel(
     modifier: Modifier = Modifier
 ) {
     val textMeasurer = rememberTextMeasurer()
+    fun formatRadarDistanceLabel(distanceKm: Float): String = if (distanceKm % 1f == 0f) {
+        distanceKm.toInt().toString()
+    } else {
+        "%.1f".format(distanceKm)
+    }
 
     Box(modifier = modifier.background(Color(0xFF000308)).pointerInput(targets, enabledTargetIds) {
         detectTapGestures(
@@ -88,7 +93,7 @@ fun RadarPanel(
             listOf(0.5f, 1.0f, 1.5f).forEach { distanceKm ->
                 val radius = maxR * (distanceKm / RADAR_MAX_DISTANCE_KM)
                 val label = textMeasurer.measure(
-                    distanceKm.toRadarDistanceLabel(),
+                    formatRadarDistanceLabel(distanceKm),
                     style = TextStyle(fontSize = 10.sp, color = RadarGreen.copy(alpha = 0.82f), fontWeight = FontWeight.SemiBold)
                 )
                 drawText(
@@ -210,10 +215,4 @@ fun RadarPanel(
             Text("工作状态: 正常工作", color = RadarGreen.copy(alpha = 0.85f), fontSize = RADAR_CORNER_TEXT_SIZE.sp)
         }
     }
-}
-
-private fun Float.toRadarDistanceLabel(): String = if (this % 1f == 0f) {
-    this.toInt().toString()
-} else {
-    "%.1f".format(this)
 }

@@ -4,7 +4,6 @@ import android.graphics.Bitmap
 import android.graphics.Canvas as AndroidCanvas
 import android.graphics.Paint
 import android.graphics.Path
-import android.graphics.Rect
 import android.graphics.RectF
 import android.os.Bundle
 import androidx.compose.foundation.background
@@ -122,6 +121,7 @@ fun MapPanel(
     var amap by remember { mutableStateOf<AMap?>(null) }
     val targetCircleMap = remember { mutableStateMapOf<String, Circle>() }
     val targetLabelMap = remember { mutableStateMapOf<String, Marker>() }
+    val markerTargetMap = remember { mutableStateMapOf<String, String>() }
     val sweepTrailLines = remember { mutableStateListOf<Polyline>() }
     var radarMarker by remember { mutableStateOf<Marker?>(null) }
 
@@ -205,6 +205,7 @@ fun MapPanel(
             }
             targetLabelMap.keys.toList().filter { it !in enabledIds }.forEach { id ->
                 targetLabelMap[id]?.remove()
+                markerTargetMap.entries.removeAll { it.value == id }
                 targetLabelMap.remove(id)
             }
             targets.filter { it.id in enabledTargetIds }.forEach { target ->
@@ -244,12 +245,16 @@ fun MapPanel(
                             .icon(BitmapDescriptorFactory.fromBitmap(labelBitmap))
                     )?.apply {
                         zIndex = 18f
-                    }?.let { targetLabelMap[target.id] = it }
+                    }?.let {
+                        targetLabelMap[target.id] = it
+                        markerTargetMap[it.id] = target.id
+                    }
                 } else {
                     labelMarker.position = latLng
                     labelMarker.title = target.droneModel
                     labelMarker.setIcon(BitmapDescriptorFactory.fromBitmap(labelBitmap))
                     labelMarker.zIndex = 18f
+                    markerTargetMap[labelMarker.id] = target.id
                 }
             }
             map.setOnMapClickListener { tapped ->
@@ -257,8 +262,8 @@ fun MapPanel(
                 onTargetClick(targetId ?: "")
             }
             map.setOnMarkerClickListener { marker ->
-                targetLabelMap.entries.firstOrNull { it.value.id == marker.id }?.let {
-                    onTargetClick(it.key)
+                markerTargetMap[marker.id]?.let {
+                    onTargetClick(it)
                     true
                 } ?: false
             }
@@ -404,10 +409,8 @@ private fun createTargetLabelBitmap(
         this.textSize = textSize
         typeface = android.graphics.Typeface.create(android.graphics.Typeface.DEFAULT, if (emphasized) android.graphics.Typeface.BOLD else android.graphics.Typeface.NORMAL)
     }
-    val textBounds = Rect()
-    textPaint.getTextBounds(title, 0, title.length, textBounds)
     val textWidth = textPaint.measureText(title)
-    val textHeight = textBounds.height().coerceAtLeast(textSize.toInt())
+    val textHeight = (textPaint.fontMetrics.descent - textPaint.fontMetrics.ascent).roundToInt()
     val width = (horizontalPadding * 2 + indicatorRadius * 2 + gap + textWidth).roundToInt()
         .coerceAtLeast((TARGET_LABEL_MIN_WIDTH_DP * density).roundToInt())
     val height = (verticalPadding * 2 + textHeight).roundToInt()
