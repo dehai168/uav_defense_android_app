@@ -5,9 +5,9 @@ plugins {
 
 def releaseKeystorePath = 'app/signing/release.jks'
 def releaseKeystoreFile = rootProject.file(releaseKeystorePath)
-def releaseKeyAlias = 'uav_defense'
-def releaseStorePassword = 'changeit123'
-def releaseKeyPassword = 'changeit123'
+def releaseKeyAlias = (findProperty('RELEASE_KEY_ALIAS') ?: System.getenv('RELEASE_KEY_ALIAS') ?: 'uav_defense').toString()
+def releaseStorePassword = (findProperty('RELEASE_STORE_PASSWORD') ?: System.getenv('RELEASE_STORE_PASSWORD') ?: 'changeit123').toString()
+def releaseKeyPassword = (findProperty('RELEASE_KEY_PASSWORD') ?: System.getenv('RELEASE_KEY_PASSWORD') ?: 'changeit123').toString()
 
 android {
     namespace 'com.uav.defense'
@@ -59,19 +59,14 @@ android {
     }
 }
 
-tasks.register('verifyFixedReleaseKeystore') {
-    doLast {
-        if (!releaseKeystoreFile.exists()) {
-            throw new GradleException(
-                "Missing fixed release keystore at ${releaseKeystoreFile}. " +
-                "Add and keep a stable JKS file at ${releaseKeystorePath} (do not regenerate per build)."
-            )
-        }
+gradle.taskGraph.whenReady { taskGraph ->
+    def needsReleaseSigning = taskGraph.allTasks.any { it.name.toLowerCase().contains('release') }
+    if (needsReleaseSigning && !releaseKeystoreFile.exists()) {
+        throw new GradleException(
+            "Missing fixed release keystore at ${releaseKeystoreFile}. " +
+            "Add and keep a stable JKS file at ${releaseKeystorePath} (do not regenerate per build)."
+        )
     }
-}
-
-tasks.matching { it.name == 'preReleaseBuild' }.configureEach {
-    dependsOn tasks.named('verifyFixedReleaseKeystore')
 }
 
 dependencies {
