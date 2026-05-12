@@ -96,12 +96,15 @@ jobs:
           fi
 
           if [ -n "${RELEASE_KEY_ALIAS_SECRET:-}" ]; then
+            echo "::add-mask::${RELEASE_KEY_ALIAS_SECRET}"
             echo "RELEASE_KEY_ALIAS=${RELEASE_KEY_ALIAS_SECRET}" >> "$GITHUB_ENV"
           fi
           if [ -n "${RELEASE_STORE_PASSWORD_SECRET:-}" ]; then
+            echo "::add-mask::${RELEASE_STORE_PASSWORD_SECRET}"
             echo "RELEASE_STORE_PASSWORD=${RELEASE_STORE_PASSWORD_SECRET}" >> "$GITHUB_ENV"
           fi
           if [ -n "${RELEASE_KEY_PASSWORD_SECRET:-}" ]; then
+            echo "::add-mask::${RELEASE_KEY_PASSWORD_SECRET}"
             echo "RELEASE_KEY_PASSWORD=${RELEASE_KEY_PASSWORD_SECRET}" >> "$GITHUB_ENV"
           fi
 
