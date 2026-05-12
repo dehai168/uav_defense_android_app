@@ -89,6 +89,13 @@ private const val DEFAULT_MAP_ZOOM = 15f
 private const val MAP_SWEEP_TRAIL_STEPS = 9
 private const val MAP_SWEEP_TRAIL_STEP_DEGREES = 3.5
 private const val TARGET_ALERT_RATIO = 0.5f
+private const val TARGET_LABEL_TEXT_SIZE_DP = 11f
+private const val TARGET_LABEL_HORIZONTAL_PADDING_DP = 8f
+private const val TARGET_LABEL_VERTICAL_PADDING_DP = 4f
+private const val TARGET_LABEL_INDICATOR_RADIUS_DP = 4f
+private const val TARGET_LABEL_GAP_DP = 6f
+private const val TARGET_LABEL_MIN_WIDTH_DP = 72f
+private const val TARGET_LABEL_MIN_HEIGHT_DP = 26f
 
 @Composable
 fun MapPanel(
@@ -385,11 +392,11 @@ private fun createTargetLabelBitmap(
     color: Int,
     emphasized: Boolean
 ): Bitmap {
-    val textSize = 11f * density
-    val horizontalPadding = 8f * density
-    val verticalPadding = 4f * density
-    val indicatorRadius = 4f * density
-    val gap = 6f * density
+    val textSize = TARGET_LABEL_TEXT_SIZE_DP * density
+    val horizontalPadding = TARGET_LABEL_HORIZONTAL_PADDING_DP * density
+    val verticalPadding = TARGET_LABEL_VERTICAL_PADDING_DP * density
+    val indicatorRadius = TARGET_LABEL_INDICATOR_RADIUS_DP * density
+    val gap = TARGET_LABEL_GAP_DP * density
 
     val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         this.color = android.graphics.Color.WHITE
@@ -400,8 +407,10 @@ private fun createTargetLabelBitmap(
     textPaint.getTextBounds(title, 0, title.length, textBounds)
     val textWidth = textPaint.measureText(title)
     val textHeight = textBounds.height().coerceAtLeast(textSize.toInt())
-    val width = (horizontalPadding * 2 + indicatorRadius * 2 + gap + textWidth).roundToInt().coerceAtLeast((72f * density).roundToInt())
-    val height = (verticalPadding * 2 + textHeight).roundToInt().coerceAtLeast((26f * density).roundToInt())
+    val width = (horizontalPadding * 2 + indicatorRadius * 2 + gap + textWidth).roundToInt()
+        .coerceAtLeast((TARGET_LABEL_MIN_WIDTH_DP * density).roundToInt())
+    val height = (verticalPadding * 2 + textHeight).roundToInt()
+        .coerceAtLeast((TARGET_LABEL_MIN_HEIGHT_DP * density).roundToInt())
     val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
     val canvas = AndroidCanvas(bitmap)
 
