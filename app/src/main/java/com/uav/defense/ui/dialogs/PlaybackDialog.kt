@@ -39,7 +39,7 @@ fun PlaybackDialog(targets: List<PadTarget>, onClose: () -> Unit) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(88.dp)) {
                         Spacer(Modifier.height(2.dp))
                         Spacer(Modifier.width(1.dp).height(8.dp).background(AccentCyan, CircleShape))
-                        Text(text, color = TextMain.copy(alpha = 0.8f), fontSize = 9.sp)
+                        Text(text, color = TextMain.copy(alpha = 0.8f), fontSize = 11.sp)
                     }
                 }
             }
@@ -56,8 +56,8 @@ fun PlaybackDialog(targets: List<PadTarget>, onClose: () -> Unit) {
                             .border(1.dp, BorderColor, RoundedCornerShape(6.dp))
                             .padding(8.dp)
                     ) {
-                        Text("${it.detectedAt}  ${it.droneModel}", color = TextMain, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-                        Text(it.trajectoryPrediction, color = TextMain.copy(alpha = 0.7f), fontSize = 10.sp)
+                        Text("${it.detectedAt}  ${it.droneModel}", color = TextMain, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                        Text(it.trajectoryPrediction, color = TextMain.copy(alpha = 0.7f), fontSize = 12.sp)
                     }
                 }
             }

@@ -39,7 +39,7 @@ fun AnalysisDialog(targets: List<PadTarget>, onClose: () -> Unit) {
         Column(modifier = bodyModifier.verticalScroll(rememberScrollState())) {
             Card(colors = CardDefaults.cardColors(containerColor = BackgroundDark), shape = RoundedCornerShape(8.dp)) {
                 Column(Modifier.padding(12.dp)) {
-                    Text("时间段分布", color = AccentCyan)
+                    Text("时间段分布", color = AccentCyan, fontSize = 14.sp)
                     androidx.compose.foundation.layout.Spacer(Modifier.height(8.dp))
                     timeData.forEach { (label, count) ->
                         BarRow(label, count, maxTime, AccentCyan)
@@ -51,7 +51,7 @@ fun AnalysisDialog(targets: List<PadTarget>, onClose: () -> Unit) {
 
             Card(colors = CardDefaults.cardColors(containerColor = BackgroundDark), shape = RoundedCornerShape(8.dp)) {
                 Column(Modifier.padding(12.dp)) {
-                    Text("类型分布", color = RadarGreen)
+                    Text("类型分布", color = RadarGreen, fontSize = 14.sp)
                     androidx.compose.foundation.layout.Spacer(Modifier.height(8.dp))
                     typeData.forEach { (label, count) ->
                         BarRow(label, count, maxType, RadarGreen)
@@ -69,10 +69,10 @@ private fun BarRow(label: String, count: Int, max: Int, color: androidx.compose.
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        Text(label, color = TextMain.copy(alpha = 0.7f), fontSize = 10.sp, modifier = Modifier.width(92.dp))
+        Text(label, color = TextMain.copy(alpha = 0.7f), fontSize = 12.sp, modifier = Modifier.width(92.dp))
         Box(Modifier.weight(1f).height(16.dp).background(BorderColor, RoundedCornerShape(3.dp))) {
             Box(Modifier.fillMaxWidth(count.toFloat() / max).height(16.dp).background(color, RoundedCornerShape(3.dp)))
         }
-        Text("$count", color = TextMain, fontSize = 11.sp, modifier = Modifier.width(20.dp))
+        Text("$count", color = TextMain, fontSize = 13.sp, modifier = Modifier.width(20.dp))
     }
 }

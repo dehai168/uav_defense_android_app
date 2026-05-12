@@ -46,7 +46,7 @@ private val settingItem = MenuItem("设置", Icons.Default.Tune, "settings")
 @Composable
 fun LeftMenu(activeModal: String?, modifier: Modifier = Modifier, onMenuClick: (String) -> Unit) {
     Column(
-        modifier = modifier.fillMaxHeight().width(84.dp).background(PanelBg).border(1.dp, BorderColor).padding(vertical = 16.dp),
+        modifier = modifier.fillMaxHeight().width(92.dp).background(PanelBg).border(1.dp, BorderColor).padding(vertical = 16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         menuItems.forEach {
@@ -62,11 +62,11 @@ fun LeftMenu(activeModal: String?, modifier: Modifier = Modifier, onMenuClick: (
 private fun MenuButton(item: MenuItem, active: Boolean, onClick: () -> Unit) {
     val tint = if (active) AccentCyan else TextMain.copy(alpha = 0.75f)
     Column(
-        modifier = Modifier.fillMaxWidth().background(if (active) AccentCyan.copy(alpha = 0.15f) else Color.Transparent, RoundedCornerShape(8.dp)).clickable(onClick = onClick).padding(vertical = 9.dp),
+        modifier = Modifier.fillMaxWidth().background(if (active) AccentCyan.copy(alpha = 0.15f) else Color.Transparent, RoundedCornerShape(8.dp)).clickable(onClick = onClick).padding(vertical = 10.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Icon(item.icon, contentDescription = item.label, tint = tint, modifier = Modifier.size(26.dp))
+        Icon(item.icon, contentDescription = item.label, tint = tint, modifier = Modifier.size(28.dp))
         Spacer(modifier = Modifier.height(4.dp))
-        Text(item.label, color = tint, fontSize = 12.sp)
+        Text(item.label, color = tint, fontSize = 14.sp)
     }
 }

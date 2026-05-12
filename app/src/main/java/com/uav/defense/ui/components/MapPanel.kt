@@ -61,8 +61,8 @@ import com.amap.api.maps2d.model.CircleOptions
 import com.amap.api.maps2d.model.LatLng
 import com.amap.api.maps2d.model.Marker
 import com.amap.api.maps2d.model.MarkerOptions
-import com.amap.api.maps2d.model.Polyline
-import com.amap.api.maps2d.model.PolylineOptions
+import com.amap.api.maps2d.model.Polygon
+import com.amap.api.maps2d.model.PolygonOptions
 import com.uav.defense.data.models.PadTarget
 import com.uav.defense.ui.theme.AccentCyan
 import com.uav.defense.ui.theme.AmberColor
@@ -83,9 +83,9 @@ private const val METERS_PER_LAT_DEG = 111000.0
 private val METERS_PER_LNG_DEG: Double = METERS_PER_LAT_DEG * cos(Math.toRadians(RADAR_LAT))
 private const val TARGET_CIRCLE_RADIUS_METERS = 38.0
 private const val TAP_DETECTION_RADIUS_METERS = 96.0
-private const val MAP_SWEEP_TRAIL_STEPS = 7
-private const val MAP_SWEEP_TRAIL_STEP_DEGREES = 4.5
-private const val MAP_SWEEP_LINE_WIDTH = 5f
+private const val MAP_SWEEP_TRAIL_STEPS = 8
+private const val MAP_SWEEP_TRAIL_STEP_DEGREES = 4.0
+private const val MAP_SWEEP_SEGMENTS = 18
 private const val TARGET_ALERT_RATIO = 0.5f
 
 @Composable
@@ -110,7 +110,7 @@ fun MapPanel(
     val radarMarkerBitmap = remember(context) { createRadarMarkerBitmap(context.resources.displayMetrics.density) }
     var amap by remember { mutableStateOf<AMap?>(null) }
     val targetCircleMap = remember { mutableStateMapOf<String, Circle>() }
-    val sweepTrailLines = remember { mutableStateListOf<Polyline>() }
+    val sweepTrailPolygons = remember { mutableStateListOf<Polygon>() }
     var radarMarker by remember { mutableStateOf<Marker?>(null) }
 
     DisposableEffect(lifecycle) {
@@ -163,22 +163,25 @@ fun MapPanel(
 
         LaunchedEffect(amap, radarSweepAngle) {
             val map = amap ?: return@LaunchedEffect
-            sweepTrailLines.forEach { it.remove() }
-            sweepTrailLines.clear()
+            sweepTrailPolygons.forEach { it.remove() }
+            sweepTrailPolygons.clear()
 
             for (step in MAP_SWEEP_TRAIL_STEPS downTo 1) {
                 val progress = 1f - (step - 1) / MAP_SWEEP_TRAIL_STEPS.toFloat()
-                val isLead = step == 1
                 val angle = radarSweepAngle.toDouble() - (step - 1) * MAP_SWEEP_TRAIL_STEP_DEGREES
-                val length = RADAR_RANGE_M * if (isLead) 1.0 else 0.7 + progress * 0.22
-                val alpha = if (isLead) 210 else (24 + progress * 126).roundToInt()
-                val width = if (isLead) MAP_SWEEP_LINE_WIDTH else 1.8f + progress * 1.8f
-                map.addPolyline(
-                    PolylineOptions()
-                        .add(LatLng(RADAR_LAT, RADAR_LNG), pointAt(angle, length))
-                        .width(width)
-                        .color(android.graphics.Color.argb(alpha, 0, 255, 136))
-                )?.let(sweepTrailLines::add)
+                val length = RADAR_RANGE_M * (0.72 + progress * 0.28)
+                val halfWidth = 2.5 + progress * 4.5
+                val fillAlpha = (10 + progress * 98).roundToInt()
+                val strokeAlpha = (42 + progress * 160).roundToInt()
+                map.addPolygon(
+                    buildRadarSweepPolygon(
+                        sweepAngle = angle,
+                        distanceMeters = length,
+                        halfWidthDegrees = halfWidth,
+                        fillAlpha = fillAlpha,
+                        strokeAlpha = strokeAlpha
+                    )
+                )?.let(sweepTrailPolygons::add)
             }
             radarMarker?.zIndex = 20f
         }
@@ -270,6 +273,29 @@ private fun pointAt(angleDeg: Double, distanceMeters: Double): LatLng {
     val dLat = (distanceMeters * cos(angleRad)) / METERS_PER_LAT_DEG
     val dLng = (distanceMeters * sin(angleRad)) / METERS_PER_LNG_DEG
     return LatLng(RADAR_LAT + dLat, RADAR_LNG + dLng)
+}
+
+private fun buildRadarSweepPolygon(
+    sweepAngle: Double,
+    distanceMeters: Double,
+    halfWidthDegrees: Double,
+    fillAlpha: Int,
+    strokeAlpha: Int
+): PolygonOptions {
+    val points = mutableListOf<LatLng>()
+    points.add(LatLng(RADAR_LAT, RADAR_LNG))
+    val startAngle = sweepAngle - halfWidthDegrees
+    val endAngle = sweepAngle + halfWidthDegrees
+    for (index in 0..MAP_SWEEP_SEGMENTS) {
+        val angleDeg = startAngle + (endAngle - startAngle) * index / MAP_SWEEP_SEGMENTS
+        points.add(pointAt(angleDeg, distanceMeters))
+    }
+    points.add(LatLng(RADAR_LAT, RADAR_LNG))
+    return PolygonOptions()
+        .addAll(points)
+        .fillColor(android.graphics.Color.argb(fillAlpha.coerceIn(0, 255), 0, 255, 136))
+        .strokeColor(android.graphics.Color.argb(strokeAlpha.coerceIn(0, 255), 80, 255, 180))
+        .strokeWidth(1.4f)
 }
 
 private fun targetDistanceColor(distanceKm: Float): Int {
