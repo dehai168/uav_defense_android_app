@@ -62,7 +62,7 @@ jobs:
           mkdir -p app/signing
 
           if [ -n "${RELEASE_JKS_BASE64:-}" ]; then
-            echo "${RELEASE_JKS_BASE64}" | base64 --decode > app/signing/release.jks
+            printf '%s' "${RELEASE_JKS_BASE64}" | base64 --decode > app/signing/release.jks
             echo "Restored release keystore from GitHub secret RELEASE_JKS_BASE64."
           elif [ -f "app/signing/release.jks" ]; then
             echo "Using repository keystore at app/signing/release.jks."
@@ -71,6 +71,8 @@ jobs:
             CI_RELEASE_ALIAS="ci_uav_defense"
             CI_RELEASE_STORE_PASSWORD="$(openssl rand -hex 16)"
             CI_RELEASE_KEY_PASSWORD="$(openssl rand -hex 16)"
+            echo "::add-mask::${CI_RELEASE_STORE_PASSWORD}"
+            echo "::add-mask::${CI_RELEASE_KEY_PASSWORD}"
             keytool -genkeypair -v \
               -storetype JKS \
               -keystore app/signing/release.jks \
