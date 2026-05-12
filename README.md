@@ -10,7 +10,7 @@ Java + Android 12（API 31）项目基础模板，已包含 Codespaces 云端编
 
 ## 高德地图 API Key 配置
 
-本应用使用高德在线地图 Android SDK（3D 地图），地图功能需要配置有效的 API Key：
+本应用使用高德在线地图 Android SDK（2D 地图），地图功能需要配置有效的 API Key：
 
 1. 前往 [高德开放平台](https://lbs.amap.com/) 注册并创建 Android 应用，获取 API Key。
 2. 打开 `app/src/main/res/values/strings.xml`，将占位符替换为您的 Key：
