@@ -15,8 +15,8 @@ import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.util.UUID
 import kotlin.math.cos
-import kotlin.random.Random
 import kotlin.math.sin
+import kotlin.random.Random
 
 data class ToastData(val id: String, val message: String, val type: String)
 
@@ -30,7 +30,7 @@ class MainViewModel : ViewModel() {
         private const val RADAR_LAT = 39.909230
         private const val RADAR_LNG = 116.397428
         private const val METERS_PER_LAT_DEG = 111000.0
-        private val METERS_PER_LNG_DEG = METERS_PER_LAT_DEG * cos(Math.toRadians(RADAR_LAT))
+        private val metersPerLngDeg = METERS_PER_LAT_DEG * cos(Math.toRadians(RADAR_LAT))
     }
     private val _targets = MutableStateFlow(MockData.targets)
     val targets: StateFlow<List<PadTarget>> = _targets.asStateFlow()
@@ -140,7 +140,7 @@ class MainViewModel : ViewModel() {
                 val rad = Math.toRadians(bearing.toDouble())
                 val distanceMeters = distance * 1000.0
                 val dLat = (distanceMeters * cos(rad)) / METERS_PER_LAT_DEG
-                val dLng = (distanceMeters * sin(rad)) / METERS_PER_LNG_DEG
+                val dLng = (distanceMeters * sin(rad)) / metersPerLngDeg
                 it.copy(
                     bearing = bearing,
                     distance = distance,

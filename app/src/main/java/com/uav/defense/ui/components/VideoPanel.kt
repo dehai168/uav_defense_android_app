@@ -43,6 +43,8 @@ import kotlinx.coroutines.delay
 import kotlin.math.sin
 
 private const val VIDEO_URL = "https://dehai167-dd.oss-cn-shanghai.aliyuncs.com/test/output.mp4"
+private const val CROSSHAIR_ALPHA = 0.85f
+private const val CROSSHAIR_STROKE_WIDTH = 1.5f
 
 @Composable
 fun VideoPanel(
@@ -100,8 +102,8 @@ fun VideoPanel(
         Canvas(Modifier.fillMaxSize()) {
             val cx = size.width / 2f
             val cy = size.height / 2f
-            drawLine(Color.White.copy(alpha = 0.85f), Offset(0f, cy), Offset(size.width, cy), 1.5f)
-            drawLine(Color.White.copy(alpha = 0.85f), Offset(cx, 0f), Offset(cx, size.height), 1.5f)
+            drawLine(Color.White.copy(alpha = CROSSHAIR_ALPHA), Offset(0f, cy), Offset(size.width, cy), CROSSHAIR_STROKE_WIDTH)
+            drawLine(Color.White.copy(alpha = CROSSHAIR_ALPHA), Offset(cx, 0f), Offset(cx, size.height), CROSSHAIR_STROKE_WIDTH)
 
             val jitter = (sin(tick * 0.01) * 4).toFloat()
             val bx = cx - 40f + jitter

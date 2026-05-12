@@ -74,6 +74,10 @@ private const val RADAR_AZIMUTH_CENTER = 48.0
 private const val RADAR_SCAN_HALF = 60.0
 private const val METERS_PER_LAT_DEG = 111000.0
 private val METERS_PER_LNG_DEG = METERS_PER_LAT_DEG * cos(Math.toRadians(RADAR_LAT))
+private const val TARGET_CIRCLE_RADIUS_METERS = 20.0
+private const val TAP_DETECTION_RADIUS_METERS = 80.0
+private const val RADAR_SWEEP_ARC_HALF_WIDTH_DEG = 8.0
+private const val RADAR_SWEEP_SEGMENTS = 18
 
 @Composable
 fun MapPanel(
@@ -180,7 +184,7 @@ fun MapPanel(
                     val circle = map.addCircle(
                         CircleOptions()
                             .center(latLng)
-                            .radius(20.0)
+                            .radius(TARGET_CIRCLE_RADIUS_METERS)
                             .fillColor(fillColor)
                             .strokeColor(strokeColor)
                             .strokeWidth(if (selectedTargetId == t.id) 5f else 3f)
@@ -276,10 +280,10 @@ private fun buildRadarCoveragePolygon(): PolygonOptions {
 private fun buildRadarSweepPolygon(sweepAngle: Double): PolygonOptions {
     val points = mutableListOf<LatLng>()
     points.add(LatLng(RADAR_LAT, RADAR_LNG))
-    val startAngle = sweepAngle - 8.0
-    val endAngle = sweepAngle + 8.0
-    for (i in 0..18) {
-        val angleDeg = startAngle + (endAngle - startAngle) * i / 18.0
+    val startAngle = sweepAngle - RADAR_SWEEP_ARC_HALF_WIDTH_DEG
+    val endAngle = sweepAngle + RADAR_SWEEP_ARC_HALF_WIDTH_DEG
+    for (i in 0..RADAR_SWEEP_SEGMENTS) {
+        val angleDeg = startAngle + (endAngle - startAngle) * i / RADAR_SWEEP_SEGMENTS
         val angleRad = Math.toRadians(angleDeg)
         val dLat = (RADAR_RANGE_M * cos(angleRad)) / METERS_PER_LAT_DEG
         val dLng = (RADAR_RANGE_M * sin(angleRad)) / METERS_PER_LNG_DEG
@@ -302,7 +306,7 @@ private fun findTappedTargetId(
         .asSequence()
         .filter { it.id in enabledTargetIds }
         .map { it.id to approximateDistanceMeters(tapped.latitude, tapped.longitude, it.lat, it.lng) }
-        .filter { it.second <= 80.0 }
+        .filter { it.second <= TAP_DETECTION_RADIUS_METERS }
         .minByOrNull { it.second }
         ?.first
 }
