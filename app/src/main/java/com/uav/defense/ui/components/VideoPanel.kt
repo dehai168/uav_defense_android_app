@@ -103,8 +103,6 @@ fun VideoPanel(
                 drawLine(Color(0xFF0A1628).copy(alpha = 0.35f), Offset(0f, y), Offset(size.width, y), 0.5f)
                 y += 8f
             }
-            val scanY = size.height * ((tick % 3000).toFloat() / 3000f)
-            drawLine(Color(0xFF00FF88).copy(alpha = 0.2f), Offset(0f, scanY), Offset(size.width, scanY), 2f)
 
             val cx = size.width / 2f
             val cy = size.height / 2f

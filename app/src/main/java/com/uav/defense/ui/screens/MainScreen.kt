@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -60,8 +61,6 @@ fun MainScreen(viewModel: MainViewModel) {
                 onDoubleTap = { viewModel.setFullscreen(null) }, modifier = Modifier.fillMaxSize())
 
             else -> Row(Modifier.fillMaxSize()) {
-                LeftMenu(activeModal) { viewModel.toggleModal(it) }
-
                 MapPanel(
                     targets, enabledTargetIds, selectedTargetId, radarSweepAngle, currentMapMode, measureMode,
                     onTargetClick = { viewModel.selectTarget(it.ifEmpty { null }) },
@@ -73,7 +72,12 @@ fun MainScreen(viewModel: MainViewModel) {
                     modifier = Modifier.weight(1f).fillMaxHeight()
                 )
 
-                Column(Modifier.width(320.dp).fillMaxHeight()) {
+                Spacer(Modifier.width(4.dp))
+
+                Column(
+                    modifier = Modifier.weight(1f).fillMaxHeight(),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
                     RadarPanel(targets, enabledTargetIds, radarSweepAngle, currentTime, selectedTargetId,
                         onTargetClick = { viewModel.selectTarget(it) },
                         onDoubleTap = { viewModel.setFullscreen("radar") },
@@ -84,6 +88,15 @@ fun MainScreen(viewModel: MainViewModel) {
                         modifier = Modifier.weight(1f).fillMaxWidth())
                 }
             }
+        }
+
+        // LeftMenu floats on top of all panels in normal view
+        if (activeFullscreenPanel == null) {
+            LeftMenu(
+                activeModal = activeModal,
+                modifier = Modifier.align(Alignment.CenterStart),
+                onMenuClick = { viewModel.toggleModal(it) }
+            )
         }
 
         when (activeModal) {

@@ -44,9 +44,9 @@ private val menuItems = listOf(
 private val settingItem = MenuItem("设置", Icons.Default.Tune, "settings")
 
 @Composable
-fun LeftMenu(activeModal: String?, onMenuClick: (String) -> Unit) {
+fun LeftMenu(activeModal: String?, modifier: Modifier = Modifier, onMenuClick: (String) -> Unit) {
     Column(
-        modifier = Modifier.fillMaxHeight().width(72.dp).background(PanelBg).border(1.dp, BorderColor).padding(vertical = 16.dp),
+        modifier = modifier.fillMaxHeight().width(72.dp).background(PanelBg).border(1.dp, BorderColor).padding(vertical = 16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         menuItems.forEach {
