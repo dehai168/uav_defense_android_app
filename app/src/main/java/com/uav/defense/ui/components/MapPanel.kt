@@ -1,5 +1,9 @@
 package com.uav.defense.ui.components
 
+import android.graphics.Bitmap
+import android.graphics.Canvas as AndroidCanvas
+import android.graphics.Paint
+import android.graphics.Path
 import android.os.Bundle
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -10,7 +14,6 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -32,9 +35,11 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -50,11 +55,14 @@ import androidx.lifecycle.LifecycleEventObserver
 import com.amap.api.maps2d.AMap
 import com.amap.api.maps2d.CameraUpdateFactory
 import com.amap.api.maps2d.MapView
+import com.amap.api.maps2d.model.BitmapDescriptorFactory
 import com.amap.api.maps2d.model.Circle
 import com.amap.api.maps2d.model.CircleOptions
 import com.amap.api.maps2d.model.LatLng
+import com.amap.api.maps2d.model.Marker
 import com.amap.api.maps2d.model.MarkerOptions
-import com.amap.api.maps2d.model.PolygonOptions
+import com.amap.api.maps2d.model.Polyline
+import com.amap.api.maps2d.model.PolylineOptions
 import com.uav.defense.data.models.PadTarget
 import com.uav.defense.ui.theme.AccentCyan
 import com.uav.defense.ui.theme.AmberColor
@@ -64,20 +72,21 @@ import com.uav.defense.ui.theme.PanelBg
 import com.uav.defense.ui.theme.RadarGreen
 import com.uav.defense.ui.theme.TextMain
 import kotlin.math.cos
+import kotlin.math.roundToInt
 import kotlin.math.sin
 import kotlin.math.sqrt
 
 private const val RADAR_LAT = 39.909230
 private const val RADAR_LNG = 116.397428
 private const val RADAR_RANGE_M = 1800.0
-private const val RADAR_AZIMUTH_CENTER = 48.0
-private const val RADAR_SCAN_HALF = 60.0
 private const val METERS_PER_LAT_DEG = 111000.0
 private val METERS_PER_LNG_DEG: Double = METERS_PER_LAT_DEG * cos(Math.toRadians(RADAR_LAT))
-private const val TARGET_CIRCLE_RADIUS_METERS = 20.0
-private const val TAP_DETECTION_RADIUS_METERS = 80.0
-private const val RADAR_SWEEP_ARC_HALF_WIDTH_DEG = 8.0
-private const val RADAR_SWEEP_SEGMENTS = 18
+private const val TARGET_CIRCLE_RADIUS_METERS = 38.0
+private const val TAP_DETECTION_RADIUS_METERS = 96.0
+private const val MAP_SWEEP_TRAIL_STEPS = 7
+private const val MAP_SWEEP_TRAIL_STEP_DEGREES = 4.5
+private const val MAP_SWEEP_LINE_WIDTH = 5f
+private const val TARGET_ALERT_RATIO = 0.5f
 
 @Composable
 fun MapPanel(
@@ -98,9 +107,11 @@ fun MapPanel(
     val context = LocalContext.current
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     val mapView = remember { MapView(context).apply { onCreate(Bundle()) } }
+    val radarMarkerBitmap = remember(context) { createRadarMarkerBitmap(context.resources.displayMetrics.density) }
     var amap by remember { mutableStateOf<AMap?>(null) }
-    val targetCircleMap = remember { mutableMapOf<String, Circle>() }
-    var scanPolygon by remember { mutableStateOf<com.amap.api.maps2d.model.Polygon?>(null) }
+    val targetCircleMap = remember { mutableStateMapOf<String, Circle>() }
+    val sweepTrailLines = remember { mutableStateListOf<Polyline>() }
+    var radarMarker by remember { mutableStateOf<Marker?>(null) }
 
     DisposableEffect(lifecycle) {
         val observer = LifecycleEventObserver { _, event ->
@@ -130,17 +141,13 @@ fun MapPanel(
                             isScaleControlsEnabled = false
                             isCompassEnabled = false
                         }
-                        moveCamera(
-                            CameraUpdateFactory.newLatLngZoom(
-                                LatLng(RADAR_LAT, RADAR_LNG), 14f
-                            )
-                        )
-                        addPolygon(buildRadarCoveragePolygon())
-                        addMarker(
+                        moveCamera(CameraUpdateFactory.newLatLngZoom(LatLng(RADAR_LAT, RADAR_LNG), 14f))
+                        radarMarker = addMarker(
                             MarkerOptions()
                                 .position(LatLng(RADAR_LAT, RADAR_LNG))
                                 .title("近程雷达-01 · 1.8km")
                                 .anchor(0.5f, 0.5f)
+                                .icon(BitmapDescriptorFactory.fromBitmap(radarMarkerBitmap))
                         )
                     }
                 }
@@ -156,8 +163,24 @@ fun MapPanel(
 
         LaunchedEffect(amap, radarSweepAngle) {
             val map = amap ?: return@LaunchedEffect
-            scanPolygon?.remove()
-            scanPolygon = map.addPolygon(buildRadarSweepPolygon(radarSweepAngle.toDouble()))
+            sweepTrailLines.forEach { it.remove() }
+            sweepTrailLines.clear()
+
+            for (step in MAP_SWEEP_TRAIL_STEPS downTo 1) {
+                val progress = 1f - (step - 1) / MAP_SWEEP_TRAIL_STEPS.toFloat()
+                val isLead = step == 1
+                val angle = radarSweepAngle.toDouble() - (step - 1) * MAP_SWEEP_TRAIL_STEP_DEGREES
+                val length = RADAR_RANGE_M * if (isLead) 1.0 else 0.7 + progress * 0.22
+                val alpha = if (isLead) 210 else (24 + progress * 126).roundToInt()
+                val width = if (isLead) MAP_SWEEP_LINE_WIDTH else 1.8f + progress * 1.8f
+                map.addPolyline(
+                    PolylineOptions()
+                        .add(LatLng(RADAR_LAT, RADAR_LNG), pointAt(angle, length))
+                        .width(width)
+                        .color(android.graphics.Color.argb(alpha, 0, 255, 136))
+                )?.let(sweepTrailLines::add)
+            }
+            radarMarker?.zIndex = 20f
         }
 
         LaunchedEffect(amap, targets, enabledTargetIds, selectedTargetId) {
@@ -167,34 +190,25 @@ fun MapPanel(
                 targetCircleMap[id]?.remove()
                 targetCircleMap.remove(id)
             }
-            targets.filter { it.id in enabledTargetIds }.forEach { t ->
-                val latLng = LatLng(t.lat, t.lng)
-                val fillColor = when (t.relation) {
-                    "hostile" -> android.graphics.Color.argb(240, 255, 80, 80)
-                    "friendly" -> android.graphics.Color.argb(240, 0, 255, 136)
-                    else -> android.graphics.Color.argb(240, 255, 178, 69)
-                }
-                val strokeColor = if (selectedTargetId == t.id) {
-                    android.graphics.Color.argb(255, 0, 245, 255)
-                } else {
-                    android.graphics.Color.argb(220, 255, 255, 255)
-                }
-                val existing = targetCircleMap[t.id]
+            targets.filter { it.id in enabledTargetIds }.forEach { target ->
+                val latLng = LatLng(target.lat, target.lng)
+                val baseColor = targetDistanceColor(target.distance)
+                val strokeColor = if (selectedTargetId == target.id) android.graphics.Color.argb(255, 0, 212, 255) else baseColor
+                val existing = targetCircleMap[target.id]
                 if (existing == null) {
-                    val circle = map.addCircle(
+                    map.addCircle(
                         CircleOptions()
                             .center(latLng)
                             .radius(TARGET_CIRCLE_RADIUS_METERS)
-                            .fillColor(fillColor)
+                            .fillColor(baseColor)
                             .strokeColor(strokeColor)
-                            .strokeWidth(if (selectedTargetId == t.id) 5f else 3f)
-                    )
-                    if (circle != null) targetCircleMap[t.id] = circle
+                            .strokeWidth(if (selectedTargetId == target.id) 6f else 3f)
+                    )?.let { targetCircleMap[target.id] = it }
                 } else {
                     existing.center = latLng
-                    existing.fillColor = fillColor
+                    existing.fillColor = baseColor
                     existing.strokeColor = strokeColor
-                    existing.strokeWidth = if (selectedTargetId == t.id) 5f else 3f
+                    existing.strokeWidth = if (selectedTargetId == target.id) 6f else 3f
                 }
             }
             map.setOnMapClickListener { tapped ->
@@ -229,26 +243,20 @@ fun MapPanel(
             IconButton(onClick = onToggleMeasure, modifier = Modifier.size(44.dp)) {
                 Icon(Icons.Default.Straighten, null, tint = if (measureMode) AccentCyan else TextMain, modifier = Modifier.size(22.dp))
             }
-            IconButton(onClick = {
-                amap?.moveCamera(CameraUpdateFactory.newLatLng(LatLng(RADAR_LAT, RADAR_LNG)))
-            }, modifier = Modifier.size(44.dp)) {
+            IconButton(onClick = { amap?.moveCamera(CameraUpdateFactory.newLatLng(LatLng(RADAR_LAT, RADAR_LNG))) }, modifier = Modifier.size(44.dp)) {
                 Icon(Icons.Default.GpsFixed, null, tint = TextMain, modifier = Modifier.size(22.dp))
             }
-            IconButton(onClick = {
-                amap?.moveCamera(CameraUpdateFactory.zoomIn())
-            }, modifier = Modifier.size(44.dp)) {
+            IconButton(onClick = { amap?.moveCamera(CameraUpdateFactory.zoomIn()) }, modifier = Modifier.size(44.dp)) {
                 Icon(Icons.Default.ZoomIn, null, tint = TextMain, modifier = Modifier.size(22.dp))
             }
-            IconButton(onClick = {
-                amap?.moveCamera(CameraUpdateFactory.zoomOut())
-            }, modifier = Modifier.size(44.dp)) {
+            IconButton(onClick = { amap?.moveCamera(CameraUpdateFactory.zoomOut()) }, modifier = Modifier.size(44.dp)) {
                 Icon(Icons.Default.ZoomOut, null, tint = TextMain, modifier = Modifier.size(22.dp))
             }
         }
 
         targets.find { it.id == selectedTargetId }?.let { target ->
             TargetPopup(
-                target,
+                target = target,
                 onDismiss = { onTargetClick("") },
                 onMarkFalsePositive = onMarkFalsePositive,
                 onSendCommand = onSendCommand
@@ -257,48 +265,67 @@ fun MapPanel(
     }
 }
 
-private fun buildRadarCoveragePolygon(): PolygonOptions {
-    val points = mutableListOf<LatLng>()
-    points.add(LatLng(RADAR_LAT, RADAR_LNG))
-    val startAngle = RADAR_AZIMUTH_CENTER - RADAR_SCAN_HALF
-    val endAngle = RADAR_AZIMUTH_CENTER + RADAR_SCAN_HALF
-    for (i in 0..30) {
-        val angleDeg = startAngle + (endAngle - startAngle) * i / 30.0
-        val angleRad = Math.toRadians(angleDeg)
-        val dLat = (RADAR_RANGE_M * cos(angleRad)) / METERS_PER_LAT_DEG
-        val dLng = (RADAR_RANGE_M * sin(angleRad)) / METERS_PER_LNG_DEG
-        points.add(LatLng(RADAR_LAT + dLat, RADAR_LNG + dLng))
-    }
-    points.add(LatLng(RADAR_LAT, RADAR_LNG))
-    return PolygonOptions()
-        .addAll(points)
-        .fillColor(android.graphics.Color.argb(55, 0, 200, 100))
-        .strokeColor(android.graphics.Color.argb(160, 0, 230, 120))
-        .strokeWidth(2f)
+private fun pointAt(angleDeg: Double, distanceMeters: Double): LatLng {
+    val angleRad = Math.toRadians(angleDeg)
+    val dLat = (distanceMeters * cos(angleRad)) / METERS_PER_LAT_DEG
+    val dLng = (distanceMeters * sin(angleRad)) / METERS_PER_LNG_DEG
+    return LatLng(RADAR_LAT + dLat, RADAR_LNG + dLng)
 }
 
-/**
- * Builds the current radar sweep sector polygon using a heading angle in degrees
- * (clockwise from north), anchored at the radar center.
- */
-private fun buildRadarSweepPolygon(sweepAngle: Double): PolygonOptions {
-    val points = mutableListOf<LatLng>()
-    points.add(LatLng(RADAR_LAT, RADAR_LNG))
-    val startAngle = sweepAngle - RADAR_SWEEP_ARC_HALF_WIDTH_DEG
-    val endAngle = sweepAngle + RADAR_SWEEP_ARC_HALF_WIDTH_DEG
-    for (i in 0..RADAR_SWEEP_SEGMENTS) {
-        val angleDeg = startAngle + (endAngle - startAngle) * i / RADAR_SWEEP_SEGMENTS
-        val angleRad = Math.toRadians(angleDeg)
-        val dLat = (RADAR_RANGE_M * cos(angleRad)) / METERS_PER_LAT_DEG
-        val dLng = (RADAR_RANGE_M * sin(angleRad)) / METERS_PER_LNG_DEG
-        points.add(LatLng(RADAR_LAT + dLat, RADAR_LNG + dLng))
+private fun targetDistanceColor(distanceKm: Float): Int {
+    val thresholdKm = RADAR_RANGE_M.toFloat() / 1000f * TARGET_ALERT_RATIO
+    return if (distanceKm <= thresholdKm) {
+        android.graphics.Color.argb(248, 255, 59, 48)
+    } else {
+        android.graphics.Color.argb(248, 0, 255, 136)
     }
-    points.add(LatLng(RADAR_LAT, RADAR_LNG))
-    return PolygonOptions()
-        .addAll(points)
-        .fillColor(android.graphics.Color.argb(80, 0, 255, 140))
-        .strokeColor(android.graphics.Color.argb(200, 80, 255, 180))
-        .strokeWidth(1.5f)
+}
+
+private fun createRadarMarkerBitmap(density: Float): Bitmap {
+    val size = (40f * density).roundToInt().coerceAtLeast(48)
+    val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+    val canvas = AndroidCanvas(bitmap)
+    val center = size / 2f
+    val radius = size * 0.26f
+
+    val ringPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = android.graphics.Color.argb(255, 0, 212, 255)
+        style = Paint.Style.STROKE
+        strokeWidth = size * 0.07f
+    }
+    val corePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = android.graphics.Color.argb(255, 0, 255, 136)
+        style = Paint.Style.FILL
+    }
+    val wingPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = android.graphics.Color.argb(235, 0, 160, 255)
+        style = Paint.Style.FILL
+    }
+
+    canvas.drawCircle(center, center, radius * 1.4f, ringPaint)
+
+    val bodyPath = Path().apply {
+        moveTo(center, center - radius * 1.55f)
+        lineTo(center + radius * 0.45f, center)
+        lineTo(center, center + radius * 1.2f)
+        lineTo(center - radius * 0.45f, center)
+        close()
+    }
+    val wingPath = Path().apply {
+        moveTo(center - radius * 1.7f, center + radius * 0.1f)
+        lineTo(center - radius * 0.15f, center - radius * 0.15f)
+        lineTo(center - radius * 0.15f, center + radius * 0.6f)
+        close()
+        moveTo(center + radius * 1.7f, center + radius * 0.1f)
+        lineTo(center + radius * 0.15f, center - radius * 0.15f)
+        lineTo(center + radius * 0.15f, center + radius * 0.6f)
+        close()
+    }
+
+    canvas.drawPath(wingPath, wingPaint)
+    canvas.drawPath(bodyPath, corePaint)
+    canvas.drawCircle(center, center, radius * 0.3f, ringPaint)
+    return bitmap
 }
 
 private fun findTappedTargetId(
@@ -337,7 +364,9 @@ private fun TargetPopup(
             Column(Modifier.padding(12.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
                     Text(target.droneModel, color = if (target.relation == "hostile") DangerRed else AmberColor, fontWeight = FontWeight.Bold)
-                    IconButton(onClick = onDismiss, modifier = Modifier.size(24.dp)) { Icon(Icons.Default.Close, null, tint = TextMain, modifier = Modifier.size(16.dp)) }
+                    IconButton(onClick = onDismiss, modifier = Modifier.size(24.dp)) {
+                        Icon(Icons.Default.Close, null, tint = TextMain, modifier = Modifier.size(16.dp))
+                    }
                 }
                 val lines = listOf(
                     "机型" to target.droneModel,
@@ -352,7 +381,7 @@ private fun TargetPopup(
                     "俯仰角" to "${target.pitch}°",
                     "垂直速度" to "${target.verticalSpeed}m/s"
                 )
-                lines.forEach { (l, v) -> Text("$l：$v", color = TextMain, fontSize = 11.sp) }
+                lines.forEach { (label, value) -> Text("$label：$value", color = TextMain, fontSize = 11.sp) }
                 if (target.actionStatus.isNotEmpty()) {
                     Spacer(Modifier.height(4.dp))
                     Text(target.actionStatus, color = AccentCyan, fontSize = 10.sp)
@@ -377,5 +406,7 @@ private fun PopupAction(label: String, color: Color, onClick: () -> Unit) {
         onClick = onClick,
         contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
         colors = ButtonDefaults.outlinedButtonColors(contentColor = color)
-    ) { Text(label, fontSize = 10.sp) }
+    ) {
+        Text(label, fontSize = 10.sp)
+    }
 }
