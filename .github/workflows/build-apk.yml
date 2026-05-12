@@ -11,8 +11,7 @@ on:
       - 'gradle/**'
       - 'gradle.properties'
       - '.github/workflows/build-apk.yml'
-      - 'scripts/**'
-      - 'keystore/**'
+      - 'app/signing/**'
   workflow_dispatch:
 
 concurrency:
@@ -51,10 +50,14 @@ jobs:
       - name: Grant execute permission for scripts and Gradle wrapper
         run: |
           chmod +x gradlew
-          chmod +x scripts/generate_keystore.sh
 
-      - name: Generate demo release keystore if missing
-        run: ./scripts/generate_keystore.sh
+      - name: Verify fixed release keystore exists
+        run: |
+          if [ ! -f "app/signing/release.jks" ]; then
+            echo "::error::Missing fixed release keystore: app/signing/release.jks"
+            echo "Add your stable JKS file at app/signing/release.jks and keep it unchanged between builds."
+            exit 1
+          fi
 
       - name: Build debug and release APKs
         run: ./gradlew :app:assembleDebug :app:assembleRelease

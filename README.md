@@ -24,7 +24,8 @@ Java + Android 12（API 31）项目基础模板，已包含 Codespaces 云端编
 ## 本地构建 APK
 
 1. 安装 Android SDK 并确保包含 `platforms;android-31` 和 `build-tools;31.0.0`
-2. 在项目根目录执行：
+2. 将固定签名文件放到仓库路径 `app/signing/release.jks`，并保持该 JKS 长期不变（不要在构建时重新生成）
+3. 在项目根目录执行：
 
 ```bash
 ./gradlew :app:assembleDebug
@@ -43,3 +44,5 @@ Java + Android 12（API 31）项目基础模板，已包含 Codespaces 云端编
 ```bash
 ./gradlew :app:assembleDebug
 ```
+
+> 执行 release 构建（例如 `:app:assembleRelease`）时，如果 `app/signing/release.jks` 缺失，构建会直接失败并提示补齐固定 JKS 文件。
