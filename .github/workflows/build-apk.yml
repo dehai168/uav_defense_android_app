@@ -51,12 +51,43 @@ jobs:
         run: |
           chmod +x gradlew
 
-      - name: Verify fixed release keystore exists
+      - name: Prepare release keystore
         run: |
+          set -euo pipefail
+          mkdir -p app/signing
+
+          if [ -n "${{ secrets.RELEASE_JKS_BASE64 }}" ]; then
+            echo "${{ secrets.RELEASE_JKS_BASE64 }}" | base64 --decode > app/signing/release.jks
+            echo "Restored release keystore from GitHub secret RELEASE_JKS_BASE64."
+          elif [ -f "app/signing/release.jks" ]; then
+            echo "Using repository keystore at app/signing/release.jks."
+          else
+            echo "::warning::RELEASE_JKS_BASE64 is not set; generating temporary CI keystore for release build."
+            keytool -genkeypair -v \
+              -storetype JKS \
+              -keystore app/signing/release.jks \
+              -storepass 123456 \
+              -keypass 123456 \
+              -alias uav_defense \
+              -keyalg RSA \
+              -keysize 2048 \
+              -validity 10000 \
+              -dname "CN=CI, OU=CI, O=CI, L=CI, S=CI, C=US"
+          fi
+
           if [ ! -f "app/signing/release.jks" ]; then
-            echo "::error::Missing fixed release keystore: app/signing/release.jks"
-            echo "Add your stable JKS file at app/signing/release.jks and keep it unchanged between builds."
+            echo "::error::Missing release keystore: app/signing/release.jks"
             exit 1
+          fi
+
+          if [ -n "${{ secrets.RELEASE_KEY_ALIAS }}" ]; then
+            echo "RELEASE_KEY_ALIAS=${{ secrets.RELEASE_KEY_ALIAS }}" >> "$GITHUB_ENV"
+          fi
+          if [ -n "${{ secrets.RELEASE_STORE_PASSWORD }}" ]; then
+            echo "RELEASE_STORE_PASSWORD=${{ secrets.RELEASE_STORE_PASSWORD }}" >> "$GITHUB_ENV"
+          fi
+          if [ -n "${{ secrets.RELEASE_KEY_PASSWORD }}" ]; then
+            echo "RELEASE_KEY_PASSWORD=${{ secrets.RELEASE_KEY_PASSWORD }}" >> "$GITHUB_ENV"
           fi
 
       - name: Build debug and release APKs
