@@ -341,7 +341,7 @@ private fun buildRadarSweepLine(
 ): PolylineOptions {
     return PolylineOptions()
         .add(LatLng(RADAR_LAT, RADAR_LNG), pointAt(sweepAngle, distanceMeters))
-        .strokeColor(android.graphics.Color.argb(strokeAlpha.coerceIn(0, 255), 80, 255, 180))
+        .color(android.graphics.Color.argb(strokeAlpha.coerceIn(0, 255), 80, 255, 180))
         .width(strokeWidth)
 }
 
