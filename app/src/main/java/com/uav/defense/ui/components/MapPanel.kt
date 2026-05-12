@@ -122,8 +122,10 @@ fun MapPanel(
     val targetCircleMap = remember { mutableStateMapOf<String, Circle>() }
     val targetLabelMap = remember { mutableStateMapOf<String, Marker>() }
     val markerTargetMap = remember { mutableStateMapOf<String, String>() }
+    val targetMarkerIdMap = remember { mutableStateMapOf<String, String>() }
     val sweepTrailLines = remember { mutableStateListOf<Polyline>() }
     var radarMarker by remember { mutableStateOf<Marker?>(null) }
+    var suppressNextMapClick by remember { mutableStateOf(false) }
 
     DisposableEffect(lifecycle) {
         val observer = LifecycleEventObserver { _, event ->
@@ -205,7 +207,7 @@ fun MapPanel(
             }
             targetLabelMap.keys.toList().filter { it !in enabledIds }.forEach { id ->
                 targetLabelMap[id]?.remove()
-                markerTargetMap.entries.removeAll { it.value == id }
+                targetMarkerIdMap.remove(id)?.let(markerTargetMap::remove)
                 targetLabelMap.remove(id)
             }
             targets.filter { it.id in enabledTargetIds }.forEach { target ->
@@ -248,6 +250,7 @@ fun MapPanel(
                     }?.let {
                         targetLabelMap[target.id] = it
                         markerTargetMap[it.id] = target.id
+                        targetMarkerIdMap[target.id] = it.id
                     }
                 } else {
                     labelMarker.position = latLng
@@ -255,14 +258,20 @@ fun MapPanel(
                     labelMarker.setIcon(BitmapDescriptorFactory.fromBitmap(labelBitmap))
                     labelMarker.zIndex = 18f
                     markerTargetMap[labelMarker.id] = target.id
+                    targetMarkerIdMap[target.id] = labelMarker.id
                 }
             }
             map.setOnMapClickListener { tapped ->
+                if (suppressNextMapClick) {
+                    suppressNextMapClick = false
+                    return@setOnMapClickListener
+                }
                 val targetId = findTappedTargetId(tapped, targets, enabledTargetIds)
                 onTargetClick(targetId ?: "")
             }
             map.setOnMarkerClickListener { marker ->
                 markerTargetMap[marker.id]?.let {
+                    suppressNextMapClick = true
                     onTargetClick(it)
                     true
                 } ?: false
