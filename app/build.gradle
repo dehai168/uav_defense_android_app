@@ -7,6 +7,11 @@ android {
     namespace 'com.uav.defense'
     compileSdk 34
 
+    def releaseKeystoreFile = rootProject.file('keystore/uav_defense_release.jks')
+    def releaseKeyAlias = 'uav_defense'
+    def releaseStorePassword = 'changeit123'
+    def releaseKeyPassword = 'changeit123'
+
     defaultConfig {
         applicationId 'com.uav.defense'
         minSdk 26
@@ -15,8 +20,23 @@ android {
         versionName '1.0'
     }
 
-    buildTypes {
+    signingConfigs {
         release {
+            if (releaseKeystoreFile.exists()) {
+                storeFile releaseKeystoreFile
+                storePassword releaseStorePassword
+                keyAlias releaseKeyAlias
+                keyPassword releaseKeyPassword
+            }
+        }
+    }
+
+    buildTypes {
+        debug {
+            signingConfig signingConfigs.debug
+        }
+        release {
+            signingConfig signingConfigs.release
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
