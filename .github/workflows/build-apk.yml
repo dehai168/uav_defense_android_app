@@ -4,10 +4,18 @@ on:
   push:
     branches:
       - main
-  pull_request:
-    branches:
-      - main
+    paths:
+      - 'app/**'
+      - 'build.gradle*'
+      - 'settings.gradle*'
+      - 'gradle/**'
+      - 'gradle.properties'
+      - '.github/workflows/build-apk.yml'
   workflow_dispatch:
+
+concurrency:
+  group: build-apk-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: write
