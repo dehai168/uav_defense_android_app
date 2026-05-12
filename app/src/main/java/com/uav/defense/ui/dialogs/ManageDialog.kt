@@ -56,7 +56,7 @@ fun ManageDialog(radarParams: RadarParams, onClose: () -> Unit, onSave: (RadarPa
     var cameraMode by remember { mutableStateOf(radarParams.cameraMode) }
 
     Dialog(onDismissRequest = onClose) {
-        Column(Modifier.width(500.dp).background(PanelBg, RoundedCornerShape(12.dp)).border(1.dp, BorderColor, RoundedCornerShape(12.dp)).padding(16.dp).verticalScroll(rememberScrollState())) {
+        Column(Modifier.fillMaxWidth(0.6f).background(PanelBg, RoundedCornerShape(12.dp)).border(1.dp, BorderColor, RoundedCornerShape(12.dp)).padding(16.dp).verticalScroll(rememberScrollState())) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 Text("设备管理", color = AccentCyan, fontWeight = FontWeight.Bold, fontSize = 16.sp)
                 IconButton(onClick = onClose) { Icon(Icons.Default.Close, null, tint = TextMain) }

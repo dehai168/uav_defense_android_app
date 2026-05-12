@@ -64,7 +64,19 @@ fun RadarPanel(
             val maxR = min(size.width, size.height) * 0.85f / 2f
             val scale = maxR / 1.5f
 
-            // Grid skeleton: 8 radial lines at 45° intervals
+            drawLine(RadarGreen.copy(alpha = 0.3f), Offset(cx - maxR, cy), Offset(cx + maxR, cy), 1f)
+            drawLine(RadarGreen.copy(alpha = 0.3f), Offset(cx, cy - maxR), Offset(cx, cy + maxR), 1f)
+
+            val radialMarks = listOf(0.5f, 1.0f, 1.5f)
+            radialMarks.forEach { km ->
+                val r = maxR * (km / 1.5f)
+                val textStyle = TextStyle(fontSize = 10.sp, color = RadarGreen.copy(alpha = 0.85f), fontWeight = FontWeight.SemiBold)
+                val rightLabel = textMeasurer.measure(km.toString(), style = textStyle)
+                val topLabel = textMeasurer.measure(km.toString(), style = textStyle)
+                drawText(rightLabel, topLeft = Offset(cx + r + 4f, cy - rightLabel.size.height / 2f))
+                drawText(topLabel, topLeft = Offset(cx - topLabel.size.width / 2f, cy - r - topLabel.size.height - 2f))
+            }
+
             for (deg in 0 until 360 step 45) {
                 val rad = Math.toRadians(deg.toDouble())
                 val ex = cx + maxR * kotlin.math.sin(rad).toFloat()
@@ -76,22 +88,36 @@ fun RadarPanel(
             for (i in 1..3) {
                 val r = maxR * (i / 3f)
                 drawCircle(RadarGreen.copy(alpha = 0.25f), r, Offset(cx, cy), style = Stroke(1f))
-                val t = textMeasurer.measure("${i * 0.5}km", style = TextStyle(fontSize = 10.sp, color = RadarGreen.copy(alpha = 0.6f)))
-                drawText(
-                    textLayoutResult = t,
-                    topLeft = Offset(cx + 3f, cy - r - t.size.height)
-                )
             }
 
             for (deg in 0 until 360 step 15) {
                 val rad = Math.toRadians(deg.toDouble())
-                val lx = cx + (maxR + 14f) * kotlin.math.sin(rad).toFloat()
-                val ly = cy - (maxR + 14f) * kotlin.math.cos(rad).toFloat()
-                val t = textMeasurer.measure("$deg", style = TextStyle(fontSize = 10.sp, color = RadarGreen.copy(alpha = 0.6f)))
-                drawText(
-                    textLayoutResult = t,
-                    topLeft = Offset(lx - t.size.width / 2f, ly - t.size.height / 2f)
+                val sinValue = kotlin.math.sin(rad).toFloat()
+                val cosValue = kotlin.math.cos(rad).toFloat()
+                val inner = if (deg % 30 == 0) maxR + 2f else maxR + 5f
+                val outer = if (deg % 30 == 0) maxR + 12f else maxR + 9f
+                drawLine(
+                    color = if (deg % 30 == 0) RadarGreen.copy(alpha = 0.95f) else RadarGreen.copy(alpha = 0.45f),
+                    start = Offset(cx + inner * sinValue, cy - inner * cosValue),
+                    end = Offset(cx + outer * sinValue, cy - outer * cosValue),
+                    strokeWidth = if (deg % 30 == 0) 1.4f else 0.8f
                 )
+                if (deg % 30 == 0) {
+                    val lx = cx + (maxR + 22f) * sinValue
+                    val ly = cy - (maxR + 22f) * cosValue
+                    val t = textMeasurer.measure(
+                        "$deg",
+                        style = TextStyle(
+                            fontSize = 10.sp,
+                            color = RadarGreen.copy(alpha = 0.98f),
+                            fontWeight = FontWeight.Bold
+                        )
+                    )
+                    drawText(
+                        textLayoutResult = t,
+                        topLeft = Offset(lx - t.size.width / 2f, ly - t.size.height / 2f)
+                    )
+                }
             }
 
             // Gradient trail: drawn BEFORE sweep line so it sits behind it.
@@ -140,7 +166,7 @@ fun RadarPanel(
             val n = textMeasurer.measure("N", style = TextStyle(fontSize = 11.sp, color = RadarGreen, fontWeight = FontWeight.Bold))
             drawText(
                 textLayoutResult = n,
-                topLeft = Offset(cx - n.size.width / 2f, cy - maxR - 26f)
+                topLeft = Offset(cx - n.size.width / 2f, cy - maxR - 40f)
             )
             drawCircle(RadarGreen, 4f, Offset(cx, cy))
         }

@@ -50,9 +50,9 @@ import androidx.lifecycle.LifecycleEventObserver
 import com.amap.api.maps2d.AMap
 import com.amap.api.maps2d.CameraUpdateFactory
 import com.amap.api.maps2d.MapView
-import com.amap.api.maps2d.model.BitmapDescriptorFactory
+import com.amap.api.maps2d.model.Circle
+import com.amap.api.maps2d.model.CircleOptions
 import com.amap.api.maps2d.model.LatLng
-import com.amap.api.maps2d.model.Marker
 import com.amap.api.maps2d.model.MarkerOptions
 import com.amap.api.maps2d.model.PolygonOptions
 import com.uav.defense.data.models.PadTarget
@@ -65,6 +65,7 @@ import com.uav.defense.ui.theme.RadarGreen
 import com.uav.defense.ui.theme.TextMain
 import kotlin.math.cos
 import kotlin.math.sin
+import kotlin.math.sqrt
 
 private const val RADAR_LAT = 39.909230
 private const val RADAR_LNG = 116.397428
@@ -94,7 +95,8 @@ fun MapPanel(
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     val mapView = remember { MapView(context).apply { onCreate(Bundle()) } }
     var amap by remember { mutableStateOf<AMap?>(null) }
-    val markerMap = remember { mutableMapOf<String, Marker>() }
+    val targetCircleMap = remember { mutableMapOf<String, Circle>() }
+    var scanPolygon by remember { mutableStateOf<com.amap.api.maps2d.model.Polygon?>(null) }
 
     DisposableEffect(lifecycle) {
         val observer = LifecycleEventObserver { _, event ->
@@ -136,17 +138,6 @@ fun MapPanel(
                                 .title("近程雷达-01 · 1.8km")
                                 .anchor(0.5f, 0.5f)
                         )
-                        setOnMarkerClickListener { marker ->
-                            val id = marker.getObject() as? String
-                            if (id != null) {
-                                onTargetClick(id)
-                                true
-                            } else {
-                                marker.showInfoWindow()
-                                false
-                            }
-                        }
-                        setOnMapClickListener { onTargetClick("") }
                     }
                 }
             }
@@ -159,34 +150,52 @@ fun MapPanel(
             }
         }
 
-        LaunchedEffect(amap, targets, enabledTargetIds) {
+        LaunchedEffect(amap, radarSweepAngle) {
+            val map = amap ?: return@LaunchedEffect
+            scanPolygon?.remove()
+            scanPolygon = map.addPolygon(buildRadarSweepPolygon(radarSweepAngle.toDouble()))
+        }
+
+        LaunchedEffect(amap, targets, enabledTargetIds, selectedTargetId) {
             val map = amap ?: return@LaunchedEffect
             val enabledIds = targets.filter { it.id in enabledTargetIds }.map { it.id }.toSet()
-            markerMap.keys.toList().filter { it !in enabledIds }.forEach { id ->
-                markerMap[id]?.remove()
-                markerMap.remove(id)
+            targetCircleMap.keys.toList().filter { it !in enabledIds }.forEach { id ->
+                targetCircleMap[id]?.remove()
+                targetCircleMap.remove(id)
             }
             targets.filter { it.id in enabledTargetIds }.forEach { t ->
                 val latLng = LatLng(t.lat, t.lng)
-                val hue = when (t.relation) {
-                    "hostile" -> BitmapDescriptorFactory.HUE_RED
-                    "friendly" -> BitmapDescriptorFactory.HUE_GREEN
-                    else -> BitmapDescriptorFactory.HUE_ORANGE
+                val fillColor = when (t.relation) {
+                    "hostile" -> android.graphics.Color.argb(240, 255, 80, 80)
+                    "friendly" -> android.graphics.Color.argb(240, 0, 255, 136)
+                    else -> android.graphics.Color.argb(240, 255, 178, 69)
                 }
-                val existing = markerMap[t.id]
-                if (existing == null) {
-                    val m = map.addMarker(
-                        MarkerOptions()
-                            .position(latLng)
-                            .title("目标${t.id.takeLast(2)}")
-                            .snippet(t.droneModel)
-                            .icon(BitmapDescriptorFactory.defaultMarker(hue))
-                    )
-                    m?.setObject(t.id)
-                    if (m != null) markerMap[t.id] = m
+                val strokeColor = if (selectedTargetId == t.id) {
+                    android.graphics.Color.argb(255, 0, 245, 255)
                 } else {
-                    existing.position = latLng
+                    android.graphics.Color.argb(220, 255, 255, 255)
                 }
+                val existing = targetCircleMap[t.id]
+                if (existing == null) {
+                    val circle = map.addCircle(
+                        CircleOptions()
+                            .center(latLng)
+                            .radius(20.0)
+                            .fillColor(fillColor)
+                            .strokeColor(strokeColor)
+                            .strokeWidth(if (selectedTargetId == t.id) 5f else 3f)
+                    )
+                    if (circle != null) targetCircleMap[t.id] = circle
+                } else {
+                    existing.center = latLng
+                    existing.fillColor = fillColor
+                    existing.strokeColor = strokeColor
+                    existing.strokeWidth = if (selectedTargetId == t.id) 5f else 3f
+                }
+            }
+            map.setOnMapClickListener { tapped ->
+                val targetId = findTappedTargetId(tapped, targets, enabledTargetIds)
+                onTargetClick(targetId ?: "")
             }
         }
 
@@ -198,7 +207,7 @@ fun MapPanel(
                 .border(1.dp, BorderColor, RoundedCornerShape(4.dp))
                 .padding(horizontal = 8.dp, vertical = 4.dp)
         ) {
-            Text("SAT-MAP  卫星图", color = AccentCyan, fontSize = 10.sp)
+            Text("MAP  $currentMapMode", color = AccentCyan, fontSize = 10.sp)
         }
 
         Column(
@@ -207,29 +216,29 @@ fun MapPanel(
                 .padding(8.dp)
                 .background(PanelBg.copy(alpha = 0.86f), RoundedCornerShape(4.dp))
                 .border(1.dp, BorderColor, RoundedCornerShape(4.dp))
-                .padding(4.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp)
+                .padding(6.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            IconButton(onClick = onSwitchMapMode, modifier = Modifier.size(32.dp)) {
-                Icon(Icons.Default.Layers, null, tint = AccentCyan, modifier = Modifier.size(16.dp))
+            IconButton(onClick = onSwitchMapMode, modifier = Modifier.size(44.dp)) {
+                Icon(Icons.Default.Layers, null, tint = AccentCyan, modifier = Modifier.size(22.dp))
             }
-            IconButton(onClick = onToggleMeasure, modifier = Modifier.size(32.dp)) {
-                Icon(Icons.Default.Straighten, null, tint = if (measureMode) AccentCyan else TextMain, modifier = Modifier.size(16.dp))
+            IconButton(onClick = onToggleMeasure, modifier = Modifier.size(44.dp)) {
+                Icon(Icons.Default.Straighten, null, tint = if (measureMode) AccentCyan else TextMain, modifier = Modifier.size(22.dp))
             }
             IconButton(onClick = {
                 amap?.moveCamera(CameraUpdateFactory.newLatLng(LatLng(RADAR_LAT, RADAR_LNG)))
-            }, modifier = Modifier.size(32.dp)) {
-                Icon(Icons.Default.GpsFixed, null, tint = TextMain, modifier = Modifier.size(16.dp))
+            }, modifier = Modifier.size(44.dp)) {
+                Icon(Icons.Default.GpsFixed, null, tint = TextMain, modifier = Modifier.size(22.dp))
             }
             IconButton(onClick = {
                 amap?.moveCamera(CameraUpdateFactory.zoomIn())
-            }, modifier = Modifier.size(32.dp)) {
-                Icon(Icons.Default.ZoomIn, null, tint = TextMain, modifier = Modifier.size(16.dp))
+            }, modifier = Modifier.size(44.dp)) {
+                Icon(Icons.Default.ZoomIn, null, tint = TextMain, modifier = Modifier.size(22.dp))
             }
             IconButton(onClick = {
                 amap?.moveCamera(CameraUpdateFactory.zoomOut())
-            }, modifier = Modifier.size(32.dp)) {
-                Icon(Icons.Default.ZoomOut, null, tint = TextMain, modifier = Modifier.size(16.dp))
+            }, modifier = Modifier.size(44.dp)) {
+                Icon(Icons.Default.ZoomOut, null, tint = TextMain, modifier = Modifier.size(22.dp))
             }
         }
 
@@ -262,6 +271,46 @@ private fun buildRadarCoveragePolygon(): PolygonOptions {
         .fillColor(android.graphics.Color.argb(55, 0, 200, 100))
         .strokeColor(android.graphics.Color.argb(160, 0, 230, 120))
         .strokeWidth(2f)
+}
+
+private fun buildRadarSweepPolygon(sweepAngle: Double): PolygonOptions {
+    val points = mutableListOf<LatLng>()
+    points.add(LatLng(RADAR_LAT, RADAR_LNG))
+    val startAngle = sweepAngle - 8.0
+    val endAngle = sweepAngle + 8.0
+    for (i in 0..18) {
+        val angleDeg = startAngle + (endAngle - startAngle) * i / 18.0
+        val angleRad = Math.toRadians(angleDeg)
+        val dLat = (RADAR_RANGE_M * cos(angleRad)) / METERS_PER_LAT_DEG
+        val dLng = (RADAR_RANGE_M * sin(angleRad)) / METERS_PER_LNG_DEG
+        points.add(LatLng(RADAR_LAT + dLat, RADAR_LNG + dLng))
+    }
+    points.add(LatLng(RADAR_LAT, RADAR_LNG))
+    return PolygonOptions()
+        .addAll(points)
+        .fillColor(android.graphics.Color.argb(80, 0, 255, 140))
+        .strokeColor(android.graphics.Color.argb(200, 80, 255, 180))
+        .strokeWidth(1.5f)
+}
+
+private fun findTappedTargetId(
+    tapped: LatLng,
+    targets: List<PadTarget>,
+    enabledTargetIds: Set<String>
+): String? {
+    return targets
+        .asSequence()
+        .filter { it.id in enabledTargetIds }
+        .map { it.id to approximateDistanceMeters(tapped.latitude, tapped.longitude, it.lat, it.lng) }
+        .filter { it.second <= 80.0 }
+        .minByOrNull { it.second }
+        ?.first
+}
+
+private fun approximateDistanceMeters(lat1: Double, lng1: Double, lat2: Double, lng2: Double): Double {
+    val dx = (lng2 - lng1) * METERS_PER_LNG_DEG
+    val dy = (lat2 - lat1) * METERS_PER_LAT_DEG
+    return sqrt(dx * dx + dy * dy)
 }
 
 @Composable

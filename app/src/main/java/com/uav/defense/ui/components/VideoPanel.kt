@@ -98,18 +98,10 @@ fun VideoPanel(
         )
 
         Canvas(Modifier.fillMaxSize()) {
-            var y = 0f
-            while (y < size.height) {
-                drawLine(Color(0xFF0A1628).copy(alpha = 0.35f), Offset(0f, y), Offset(size.width, y), 0.5f)
-                y += 8f
-            }
-
             val cx = size.width / 2f
             val cy = size.height / 2f
-            drawLine(Color.White.copy(alpha = 0.8f), Offset(cx - 30f, cy), Offset(cx - 8f, cy), 1.5f)
-            drawLine(Color.White.copy(alpha = 0.8f), Offset(cx + 8f, cy), Offset(cx + 30f, cy), 1.5f)
-            drawLine(Color.White.copy(alpha = 0.8f), Offset(cx, cy - 30f), Offset(cx, cy - 8f), 1.5f)
-            drawLine(Color.White.copy(alpha = 0.8f), Offset(cx, cy + 8f), Offset(cx, cy + 30f), 1.5f)
+            drawLine(Color.White.copy(alpha = 0.85f), Offset(0f, cy), Offset(size.width, cy), 1.5f)
+            drawLine(Color.White.copy(alpha = 0.85f), Offset(cx, 0f), Offset(cx, size.height), 1.5f)
 
             val jitter = (sin(tick * 0.01) * 4).toFloat()
             val bx = cx - 40f + jitter
@@ -143,11 +135,10 @@ fun VideoPanel(
                 .padding(horizontal = 8.dp, vertical = 4.dp),
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Text(activeCamera?.deviceName ?: "光电转台-01", color = TextMain, fontSize = 9.sp)
-            Text("转角 ${"%.1f".format(pan)}°", color = TextMain, fontSize = 9.sp)
-            Text("仰角 ${"%.1f".format(tilt)}°", color = TextMain, fontSize = 9.sp)
-            Text("码流 1080P / 25FPS", color = TextMain, fontSize = 9.sp)
+            Text(activeCamera?.deviceName ?: "光电转台-01", color = TextMain, fontSize = 11.sp)
+            Text("转角 ${"%.1f".format(pan)}°", color = TextMain, fontSize = 11.sp)
+            Text("仰角 ${"%.1f".format(tilt)}°", color = TextMain, fontSize = 11.sp)
+            Text("码流 1080P / 25FPS", color = TextMain, fontSize = 11.sp)
         }
     }
 }
-
