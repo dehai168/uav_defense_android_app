@@ -85,6 +85,7 @@ fun RadarPanel(
             }
 
             drawCircle(RadarGreen.copy(alpha = 0.65f), maxR, Offset(cx, cy), style = Stroke(1.5f))
+            // Distance labels are rendered on horizontal/vertical axes for clearer alignment.
             for (i in 1..3) {
                 val r = maxR * (i / 3f)
                 drawCircle(RadarGreen.copy(alpha = 0.25f), r, Offset(cx, cy), style = Stroke(1f))

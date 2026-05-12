@@ -277,6 +277,10 @@ private fun buildRadarCoveragePolygon(): PolygonOptions {
         .strokeWidth(2f)
 }
 
+/**
+ * Builds the current radar sweep sector polygon using a heading angle in degrees
+ * (clockwise from north), anchored at the radar center.
+ */
 private fun buildRadarSweepPolygon(sweepAngle: Double): PolygonOptions {
     val points = mutableListOf<LatLng>()
     points.add(LatLng(RADAR_LAT, RADAR_LNG))

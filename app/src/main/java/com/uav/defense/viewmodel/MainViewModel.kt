@@ -30,6 +30,7 @@ class MainViewModel : ViewModel() {
         private const val RADAR_LAT = 39.909230
         private const val RADAR_LNG = 116.397428
         private const val METERS_PER_LAT_DEG = 111000.0
+        // Longitude-degree meter length depends on latitude; computed once for radar latitude.
         private val METERS_PER_LNG_DEG = METERS_PER_LAT_DEG * cos(Math.toRadians(RADAR_LAT))
     }
     private val _targets = MutableStateFlow(MockData.targets)
