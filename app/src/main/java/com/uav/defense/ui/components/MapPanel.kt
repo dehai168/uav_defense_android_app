@@ -211,7 +211,7 @@ fun MapPanel(
                 .border(1.dp, BorderColor, RoundedCornerShape(4.dp))
                 .padding(horizontal = 8.dp, vertical = 4.dp)
         ) {
-            Text("MAP  $currentMapMode", color = AccentCyan, fontSize = 10.sp)
+            Text("地图类型：$currentMapMode", color = AccentCyan, fontSize = 10.sp)
         }
 
         Column(
