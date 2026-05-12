@@ -86,6 +86,7 @@ private val METERS_PER_LNG_DEG: Double = METERS_PER_LAT_DEG * cos(Math.toRadians
 private const val TARGET_CIRCLE_RADIUS_METERS = 38.0
 private const val TAP_DETECTION_RADIUS_METERS = 96.0
 private const val DEFAULT_MAP_ZOOM = 15f
+// A short 9-step trail with 3.5° spacing keeps the map beam smooth without reintroducing the old triangle fan look.
 private const val MAP_SWEEP_TRAIL_STEPS = 9
 private const val MAP_SWEEP_TRAIL_STEP_DEGREES = 3.5
 private const val TARGET_ALERT_RATIO = 0.5f

@@ -30,6 +30,7 @@ class MainViewModel : ViewModel() {
         private const val RADAR_LAT = 22.5307369
         private const val RADAR_LNG = 114.0573761
         private const val METERS_PER_LAT_DEG = 111000.0
+        // 360° / 64 updates = 5.625° per 50 ms tick, matching a 3.2 s full sweep.
         private const val RADAR_SWEEP_STEP_DEGREES = 5.625f
         // Longitude-degree meter length depends on latitude; computed once for radar latitude.
         private val METERS_PER_LNG_DEG: Double = METERS_PER_LAT_DEG * cos(Math.toRadians(RADAR_LAT))
