@@ -12,7 +12,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
@@ -29,6 +28,14 @@ import com.uav.defense.ui.theme.HostileOrange
 import com.uav.defense.ui.theme.NeutralOrange
 import com.uav.defense.ui.theme.RadarGreen
 import kotlin.math.min
+
+private const val RADAR_MAX_DISTANCE_KM = 1.5f
+private const val RADAR_RING_STEP_KM = 0.125f
+private const val RADAR_MAJOR_ANGLE_STEP = 30
+private const val RADAR_MINOR_ANGLE_STEP = 15
+private const val RADAR_SWEEP_TRAIL_STEPS = 18
+private const val RADAR_SWEEP_TRAIL_STEP_DEGREES = 1.8f
+private const val RADAR_SWEEP_PARTICLE_COUNT = 10
 
 @Composable
 fun RadarPanel(
@@ -49,7 +56,7 @@ fun RadarPanel(
             onTap = { tap ->
                 val cx = size.width / 2f
                 val cy = size.height / 2f
-                val scale = min(size.width, size.height) * 0.85f / 2f / 1.5f
+                val scale = min(size.width, size.height) * 0.85f / 2f / RADAR_MAX_DISTANCE_KM
                 val hit = targets.filter { it.id in enabledTargetIds }.firstOrNull {
                     val p = targetToXY(it.bearing, it.distance, cx, cy, scale)
                     (tap - p).getDistance() < 20f
@@ -62,118 +69,142 @@ fun RadarPanel(
             val cx = size.width / 2f
             val cy = size.height / 2f
             val maxR = min(size.width, size.height) * 0.85f / 2f
-            val scale = maxR / 1.5f
+            val scale = maxR / RADAR_MAX_DISTANCE_KM
+            val labelAngle = Math.toRadians(32.0)
+            val labelSin = kotlin.math.sin(labelAngle).toFloat()
+            val labelCos = kotlin.math.cos(labelAngle).toFloat()
 
-            drawLine(RadarGreen.copy(alpha = 0.3f), Offset(cx - maxR, cy), Offset(cx + maxR, cy), 1f)
-            drawLine(RadarGreen.copy(alpha = 0.3f), Offset(cx, cy - maxR), Offset(cx, cy + maxR), 1f)
-
-            val radialMarks = listOf(0.5f, 1.0f, 1.5f)
-            // Distance labels are rendered on horizontal/vertical axes for clearer alignment.
-            radialMarks.forEach { km ->
-                val r = maxR * (km / 1.5f)
-                val textStyle = TextStyle(fontSize = 10.sp, color = RadarGreen.copy(alpha = 0.85f), fontWeight = FontWeight.SemiBold)
-                val rightLabel = textMeasurer.measure(km.toString(), style = textStyle)
-                val topLabel = textMeasurer.measure(km.toString(), style = textStyle)
-                drawText(rightLabel, topLeft = Offset(cx + r + 4f, cy - rightLabel.size.height / 2f))
-                drawText(topLabel, topLeft = Offset(cx - topLabel.size.width / 2f, cy - r - topLabel.size.height - 2f))
+            for (ringIndex in 1..(RADAR_MAX_DISTANCE_KM / RADAR_RING_STEP_KM).toInt()) {
+                val distanceKm = ringIndex * RADAR_RING_STEP_KM
+                val radius = maxR * (distanceKm / RADAR_MAX_DISTANCE_KM)
+                val isMajor = ringIndex % 4 == 0
+                drawCircle(
+                    color = RadarGreen.copy(alpha = if (isMajor) 0.34f else 0.14f),
+                    radius = radius,
+                    center = Offset(cx, cy),
+                    style = Stroke(if (isMajor) 1.15f else 0.75f)
+                )
+                if (isMajor) {
+                    val label = textMeasurer.measure(
+                        "%.1f".format(distanceKm),
+                        style = TextStyle(fontSize = 9.sp, color = RadarGreen.copy(alpha = 0.72f))
+                    )
+                    val labelRadius = (radius - 18f).coerceAtLeast(10f)
+                    drawText(
+                        textLayoutResult = label,
+                        topLeft = Offset(
+                            cx + labelRadius * labelSin - label.size.width / 2f,
+                            cy - labelRadius * labelCos - label.size.height / 2f
+                        )
+                    )
+                }
             }
 
-            for (deg in 0 until 360 step 45) {
+            for (deg in 0 until 360 step RADAR_MAJOR_ANGLE_STEP) {
                 val rad = Math.toRadians(deg.toDouble())
                 val ex = cx + maxR * kotlin.math.sin(rad).toFloat()
                 val ey = cy - maxR * kotlin.math.cos(rad).toFloat()
-                drawLine(RadarGreen.copy(alpha = 0.15f), Offset(cx, cy), Offset(ex, ey), 0.8f)
+                drawLine(RadarGreen.copy(alpha = 0.2f), Offset(cx, cy), Offset(ex, ey), 0.95f)
             }
 
-            drawCircle(RadarGreen.copy(alpha = 0.65f), maxR, Offset(cx, cy), style = Stroke(1.5f))
-            for (i in 1..3) {
-                val r = maxR * (i / 3f)
-                drawCircle(RadarGreen.copy(alpha = 0.25f), r, Offset(cx, cy), style = Stroke(1f))
-                val ringLabel = textMeasurer.measure(
-                    "${i * 0.5}",
-                    style = TextStyle(fontSize = 9.sp, color = RadarGreen.copy(alpha = 0.5f))
-                )
-                drawText(ringLabel, topLeft = Offset(cx + 6f, cy - r - ringLabel.size.height))
-            }
-
-            for (deg in 0 until 360 step 15) {
+            for (deg in 0 until 360 step RADAR_MINOR_ANGLE_STEP) {
                 val rad = Math.toRadians(deg.toDouble())
                 val sinValue = kotlin.math.sin(rad).toFloat()
                 val cosValue = kotlin.math.cos(rad).toFloat()
-                val inner = if (deg % 30 == 0) maxR + 2f else maxR + 5f
-                val outer = if (deg % 30 == 0) maxR + 12f else maxR + 9f
+                val isMajor = deg % RADAR_MAJOR_ANGLE_STEP == 0
+                val inner = if (isMajor) maxR + 2f else maxR + 5f
+                val outer = if (isMajor) maxR + 13f else maxR + 10f
                 drawLine(
-                    color = if (deg % 30 == 0) RadarGreen.copy(alpha = 0.95f) else RadarGreen.copy(alpha = 0.45f),
+                    color = if (isMajor) RadarGreen.copy(alpha = 0.96f) else RadarGreen.copy(alpha = 0.46f),
                     start = Offset(cx + inner * sinValue, cy - inner * cosValue),
                     end = Offset(cx + outer * sinValue, cy - outer * cosValue),
-                    strokeWidth = if (deg % 30 == 0) 1.4f else 0.8f
+                    strokeWidth = if (isMajor) 1.45f else 0.85f
                 )
-                if (deg % 30 == 0) {
-                    val lx = cx + (maxR + 22f) * sinValue
-                    val ly = cy - (maxR + 22f) * cosValue
-                    val t = textMeasurer.measure(
-                        "$deg",
-                        style = TextStyle(
-                            fontSize = 10.sp,
-                            color = RadarGreen.copy(alpha = 0.98f),
-                            fontWeight = FontWeight.Bold
-                        )
+
+                val labelDistance = if (isMajor) maxR + 25f else maxR + 22f
+                val label = textMeasurer.measure(
+                    "$deg",
+                    style = TextStyle(
+                        fontSize = 10.sp,
+                        color = if (isMajor) RadarGreen.copy(alpha = 0.98f) else RadarGreen.copy(alpha = 0.58f),
+                        fontWeight = if (isMajor) FontWeight.Bold else FontWeight.Normal
                     )
-                    drawText(
-                        textLayoutResult = t,
-                        topLeft = Offset(lx - t.size.width / 2f, ly - t.size.height / 2f)
+                )
+                drawText(
+                    textLayoutResult = label,
+                    topLeft = Offset(
+                        cx + labelDistance * sinValue - label.size.width / 2f,
+                        cy - labelDistance * cosValue - label.size.height / 2f
                     )
-                }
+                )
             }
 
-            // Gradient trail: drawn BEFORE sweep line so it sits behind it.
-            // 40 thin arc slices going from transparent at the trailing end to green just
-            // before the sweep line. All slices occupy angles BEFORE the sweep angle.
-            val trailTotalAngle = 48f
-            val trailSteps = 40
-            val stepAngle = trailTotalAngle / trailSteps
-            val sliceOverlap = 0.3f  // slight overlap between slices to prevent visible gaps
-            for (step in 0 until trailSteps) {
-                val progress = step.toFloat() / trailSteps
-                val alpha = progress * 0.5f
-                drawArc(
-                    color = RadarGreen.copy(alpha = alpha),
-                    startAngle = radarSweepAngle - 90f - trailTotalAngle + step * stepAngle,
-                    sweepAngle = stepAngle + sliceOverlap,
-                    useCenter = true,
-                    topLeft = Offset(cx - maxR, cy - maxR),
-                    size = Size(maxR * 2, maxR * 2)
+            for (step in RADAR_SWEEP_TRAIL_STEPS downTo 1) {
+                val progress = 1f - (step - 1) / RADAR_SWEEP_TRAIL_STEPS.toFloat()
+                val angle = radarSweepAngle - (step - 1) * RADAR_SWEEP_TRAIL_STEP_DEGREES
+                val rad = Math.toRadians(angle.toDouble())
+                val sinValue = kotlin.math.sin(rad).toFloat()
+                val cosValue = kotlin.math.cos(rad).toFloat()
+                val length = maxR * (0.62f + progress * 0.38f)
+                val color = RadarGreen.copy(alpha = 0.04f + progress * 0.26f)
+
+                drawLine(
+                    color = color,
+                    start = Offset(cx, cy),
+                    end = Offset(cx + length * sinValue, cy - length * cosValue),
+                    strokeWidth = 0.8f + progress * 1.2f
                 )
+
+                for (particle in 1..RADAR_SWEEP_PARTICLE_COUNT) {
+                    val distanceRatio = particle / RADAR_SWEEP_PARTICLE_COUNT.toFloat()
+                    val spread = ((particle % 3) - 1) * (1.4f + step * 0.15f)
+                    val px = cx + length * distanceRatio * sinValue + spread * cosValue
+                    val py = cy - length * distanceRatio * cosValue + spread * sinValue
+                    drawCircle(
+                        color = RadarGreen.copy(alpha = color.alpha * (0.45f + distanceRatio * 0.55f)),
+                        radius = 0.9f + progress * 1.3f,
+                        center = Offset(px, py)
+                    )
+                }
             }
 
             val sweep = Math.toRadians(radarSweepAngle.toDouble())
-            drawLine(RadarGreen.copy(alpha = 0.9f), Offset(cx, cy), Offset(cx + maxR * kotlin.math.sin(sweep).toFloat(), cy - maxR * kotlin.math.cos(sweep).toFloat()), 1.5f)
-
-            targets.filter { it.id in enabledTargetIds }.forEach { t ->
-                val p = targetToXY(t.bearing, t.distance, cx, cy, scale)
-                val c = when {
-                    t.relation == "hostile" -> HostileOrange
-                    t.relation == "friendly" -> AmberColor
-                    else -> NeutralOrange
-                }
-                for (tail in 1..3) {
-                    val tp = targetToXY(t.bearing - tail * 8f, t.distance, cx, cy, scale)
-                    drawCircle(c.copy(alpha = 0.2f / tail), 3f, tp)
-                }
-                drawCircle(c, 5f, p)
-                if (selectedTargetId == t.id) drawCircle(AccentCyan, 8f, p, style = Stroke(1.5f))
-                val label = textMeasurer.measure("T${t.id.takeLast(2)}", style = TextStyle(fontSize = 8.sp, color = c))
-                drawText(
-                    textLayoutResult = label,
-                    topLeft = Offset(p.x + 6f, p.y - label.size.height / 2f)
+            val sweepEnd = Offset(
+                cx + maxR * kotlin.math.sin(sweep).toFloat(),
+                cy - maxR * kotlin.math.cos(sweep).toFloat()
+            )
+            drawLine(RadarGreen.copy(alpha = 0.94f), Offset(cx, cy), sweepEnd, 1.8f)
+            repeat(12) { index ->
+                val ratio = (index + 1) / 12f
+                drawCircle(
+                    color = RadarGreen.copy(alpha = 0.24f + ratio * 0.42f),
+                    radius = 1.2f + ratio,
+                    center = Offset(
+                        cx + (sweepEnd.x - cx) * ratio,
+                        cy + (sweepEnd.y - cy) * ratio
+                    )
                 )
             }
 
-            val n = textMeasurer.measure("N", style = TextStyle(fontSize = 11.sp, color = RadarGreen, fontWeight = FontWeight.Bold))
-            drawText(
-                textLayoutResult = n,
-                topLeft = Offset(cx - n.size.width / 2f, cy - maxR - 40f)
-            )
+            targets.filter { it.id in enabledTargetIds }.forEach { target ->
+                val point = targetToXY(target.bearing, target.distance, cx, cy, scale)
+                val color = when {
+                    target.relation == "hostile" -> HostileOrange
+                    target.relation == "friendly" -> AmberColor
+                    else -> NeutralOrange
+                }
+                for (tail in 1..3) {
+                    val trailPoint = targetToXY(target.bearing - tail * 8f, target.distance, cx, cy, scale)
+                    drawCircle(color.copy(alpha = 0.18f / tail), 3f, trailPoint)
+                }
+                drawCircle(color, 5f, point)
+                if (selectedTargetId == target.id) drawCircle(AccentCyan, 8f, point, style = Stroke(1.5f))
+                val label = textMeasurer.measure("T${target.id.takeLast(2)}", style = TextStyle(fontSize = 8.sp, color = color))
+                drawText(textLayoutResult = label, topLeft = Offset(point.x + 6f, point.y - label.size.height / 2f))
+            }
+
+            val north = textMeasurer.measure("N", style = TextStyle(fontSize = 11.sp, color = RadarGreen, fontWeight = FontWeight.Bold))
+            drawText(textLayoutResult = north, topLeft = Offset(cx - north.size.width / 2f, cy - maxR - 42f))
             drawCircle(RadarGreen, 4f, Offset(cx, cy))
         }
 
@@ -183,7 +214,7 @@ fun RadarPanel(
             Text("天线方位角: ${"%.1f".format(radarSweepAngle)}°", color = RadarGreen.copy(alpha = 0.85f), fontSize = 11.sp)
             Text(currentTime, color = RadarGreen.copy(alpha = 0.70f), fontSize = 11.sp)
         }
-        Column(Modifier.align(Alignment.TopEnd).padding(6.dp), horizontalAlignment = androidx.compose.ui.Alignment.End) {
+        Column(Modifier.align(Alignment.TopEnd).padding(6.dp), horizontalAlignment = Alignment.End) {
             Text("连接状态: 已连接", color = RadarGreen.copy(alpha = 0.85f), fontSize = 11.sp)
             Text("工作模式: 搜索", color = RadarGreen.copy(alpha = 0.85f), fontSize = 11.sp)
         }

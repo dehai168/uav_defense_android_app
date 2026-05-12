@@ -1,24 +1,15 @@
 package com.uav.defense.ui.dialogs
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
@@ -30,14 +21,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
 import com.uav.defense.data.models.RadarParams
 import com.uav.defense.ui.theme.AccentCyan
 import com.uav.defense.ui.theme.BorderColor
-import com.uav.defense.ui.theme.PanelBg
 import com.uav.defense.ui.theme.TextMain
 
 @Composable
@@ -55,14 +43,10 @@ fun ManageDialog(radarParams: RadarParams, onClose: () -> Unit, onSave: (RadarPa
     var clutterLevel by remember { mutableStateOf(radarParams.clutterLevel) }
     var cameraMode by remember { mutableStateOf(radarParams.cameraMode) }
 
-    Dialog(onDismissRequest = onClose) {
-        Column(Modifier.fillMaxWidth(0.6f).background(PanelBg, RoundedCornerShape(12.dp)).border(1.dp, BorderColor, RoundedCornerShape(12.dp)).padding(16.dp).verticalScroll(rememberScrollState())) {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                Text("设备管理", color = AccentCyan, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                IconButton(onClick = onClose) { Icon(Icons.Default.Close, null, tint = TextMain) }
-            }
-            Spacer(Modifier.height(10.dp))
-
+    MenuDialogFrame(title = "设备管理", onClose = onClose) { bodyModifier ->
+        androidx.compose.foundation.layout.Column(
+            modifier = bodyModifier.verticalScroll(rememberScrollState())
+        ) {
             val fields = listOf(
                 Triple("雷达名称", name) { v: String -> name = v },
                 Triple("经度", lng) { v: String -> lng = v },
@@ -79,8 +63,16 @@ fun ManageDialog(radarParams: RadarParams, onClose: () -> Unit, onSave: (RadarPa
             )
 
             fields.forEach { (label, value, onUpdate) ->
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text(label, color = TextMain.copy(alpha = 0.75f), fontSize = 12.sp, modifier = Modifier.width(90.dp))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Text(
+                        label,
+                        color = TextMain.copy(alpha = 0.75f),
+                        fontSize = 12.sp,
+                        modifier = Modifier.width(90.dp)
+                    )
                     OutlinedTextField(
                         value = value,
                         onValueChange = onUpdate,
@@ -104,7 +96,9 @@ fun ManageDialog(radarParams: RadarParams, onClose: () -> Unit, onSave: (RadarPa
                 },
                 modifier = Modifier.fillMaxWidth(),
                 colors = ButtonDefaults.buttonColors(containerColor = AccentCyan)
-            ) { Text("保存参数", color = Color.Black, fontWeight = FontWeight.Bold) }
+            ) {
+                Text("保存参数", color = Color.Black)
+            }
         }
     }
 }

@@ -36,7 +36,6 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
 import com.uav.defense.data.models.Camera
 import com.uav.defense.data.models.PadTarget
-import com.uav.defense.ui.theme.AccentCyan
 import com.uav.defense.ui.theme.DangerRed
 import com.uav.defense.ui.theme.TextMain
 import kotlinx.coroutines.delay
@@ -45,6 +44,7 @@ import kotlin.math.sin
 private const val VIDEO_URL = "https://dehai167-dd.oss-cn-shanghai.aliyuncs.com/test/output.mp4"
 private const val CROSSHAIR_ALPHA = 0.85f
 private const val CROSSHAIR_STROKE_WIDTH = 1.5f
+private val TRACKING_OVERLAY_COLOR = Color(0xFF00FF88)
 
 @Composable
 fun VideoPanel(
@@ -102,30 +102,26 @@ fun VideoPanel(
         Canvas(Modifier.fillMaxSize()) {
             val cx = size.width / 2f
             val cy = size.height / 2f
-            drawLine(Color.White.copy(alpha = CROSSHAIR_ALPHA), Offset(0f, cy), Offset(size.width, cy), CROSSHAIR_STROKE_WIDTH)
-            drawLine(Color.White.copy(alpha = CROSSHAIR_ALPHA), Offset(cx, 0f), Offset(cx, size.height), CROSSHAIR_STROKE_WIDTH)
+            val overlayColor = TRACKING_OVERLAY_COLOR.copy(alpha = CROSSHAIR_ALPHA)
+            drawLine(overlayColor, Offset(0f, cy), Offset(size.width, cy), CROSSHAIR_STROKE_WIDTH)
+            drawLine(overlayColor, Offset(cx, 0f), Offset(cx, size.height), CROSSHAIR_STROKE_WIDTH)
 
             val jitter = (sin(tick * 0.01) * 4).toFloat()
             val bx = cx - 40f + jitter
             val by = cy - 30f + jitter / 2f
-            val col = Color(0xFF00FF88).copy(alpha = 0.85f)
-            val cl = 14f
-            drawLine(col, Offset(bx, by), Offset(bx + cl, by), 1.5f)
-            drawLine(col, Offset(bx, by), Offset(bx, by + cl), 1.5f)
-            drawLine(col, Offset(bx + 80f, by), Offset(bx + 80f - cl, by), 1.5f)
-            drawLine(col, Offset(bx + 80f, by), Offset(bx + 80f, by + cl), 1.5f)
-            drawLine(col, Offset(bx, by + 60f), Offset(bx + cl, by + 60f), 1.5f)
-            drawLine(col, Offset(bx, by + 60f), Offset(bx, by + 60f - cl), 1.5f)
-            drawLine(col, Offset(bx + 80f, by + 60f), Offset(bx + 80f - cl, by + 60f), 1.5f)
-            drawLine(col, Offset(bx + 80f, by + 60f), Offset(bx + 80f, by + 60f - cl), 1.5f)
+            val cornerLength = 14f
+            drawLine(overlayColor, Offset(bx, by), Offset(bx + cornerLength, by), 1.5f)
+            drawLine(overlayColor, Offset(bx, by), Offset(bx, by + cornerLength), 1.5f)
+            drawLine(overlayColor, Offset(bx + 80f, by), Offset(bx + 80f - cornerLength, by), 1.5f)
+            drawLine(overlayColor, Offset(bx + 80f, by), Offset(bx + 80f, by + cornerLength), 1.5f)
+            drawLine(overlayColor, Offset(bx, by + 60f), Offset(bx + cornerLength, by + 60f), 1.5f)
+            drawLine(overlayColor, Offset(bx, by + 60f), Offset(bx, by + 60f - cornerLength), 1.5f)
+            drawLine(overlayColor, Offset(bx + 80f, by + 60f), Offset(bx + 80f - cornerLength, by + 60f), 1.5f)
+            drawLine(overlayColor, Offset(bx + 80f, by + 60f), Offset(bx + 80f, by + 60f - cornerLength), 1.5f)
         }
 
         Row(Modifier.align(Alignment.TopStart).padding(6.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            Box(
-                Modifier
-                    .size(8.dp)
-                    .background(if (recBlink) DangerRed else Color.Transparent, CircleShape)
-            )
+            Box(Modifier.size(8.dp).background(if (recBlink) DangerRed else Color.Transparent, CircleShape))
             Text("REC  $currentTime", color = Color.White, fontSize = 10.sp)
         }
 
