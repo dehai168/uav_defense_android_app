@@ -95,17 +95,19 @@ fun RadarPanel(
             }
 
             // Gradient trail: drawn BEFORE sweep line so it sits behind it.
-            // 40 thin arc slices from transparent → green, all at angles < sweep angle.
+            // 40 thin arc slices going from transparent at the trailing end to green just
+            // before the sweep line. All slices occupy angles BEFORE the sweep angle.
             val trailTotalAngle = 48f
             val trailSteps = 40
             val stepAngle = trailTotalAngle / trailSteps
+            val sliceOverlap = 0.3f  // slight overlap between slices to prevent visible gaps
             for (step in 0 until trailSteps) {
                 val progress = step.toFloat() / trailSteps
                 val alpha = progress * 0.5f
                 drawArc(
                     color = RadarGreen.copy(alpha = alpha),
                     startAngle = radarSweepAngle - 90f - trailTotalAngle + step * stepAngle,
-                    sweepAngle = stepAngle + 0.3f,
+                    sweepAngle = stepAngle + sliceOverlap,
                     useCenter = true,
                     topLeft = Offset(cx - maxR, cy - maxR),
                     size = Size(maxR * 2, maxR * 2)
