@@ -89,6 +89,11 @@ fun RadarPanel(
             for (i in 1..3) {
                 val r = maxR * (i / 3f)
                 drawCircle(RadarGreen.copy(alpha = 0.25f), r, Offset(cx, cy), style = Stroke(1f))
+                val ringLabel = textMeasurer.measure(
+                    "${i * 0.5}",
+                    style = TextStyle(fontSize = 9.sp, color = RadarGreen.copy(alpha = 0.5f))
+                )
+                drawText(ringLabel, topLeft = Offset(cx + 6f, cy - r - ringLabel.size.height))
             }
 
             for (deg in 0 until 360 step 15) {
