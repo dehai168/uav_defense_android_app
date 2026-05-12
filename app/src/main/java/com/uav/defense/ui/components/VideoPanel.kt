@@ -42,7 +42,7 @@ import kotlinx.coroutines.delay
 import kotlin.math.sin
 
 private const val VIDEO_URL = "https://dehai167-dd.oss-cn-shanghai.aliyuncs.com/test/output.mp4"
-private const val CROSSHAIR_ALPHA = 0.85f
+private const val CROSSHAIR_ALPHA = 0.72f
 private const val CROSSHAIR_STROKE_WIDTH = 1.5f
 private val TRACKING_OVERLAY_COLOR = Color(0xFF00FF88)
 
@@ -120,9 +120,9 @@ fun VideoPanel(
             drawLine(overlayColor, Offset(bx + 80f, by + 60f), Offset(bx + 80f, by + 60f - cornerLength), 1.5f)
         }
 
-        Row(Modifier.align(Alignment.TopStart).padding(6.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            Box(Modifier.size(8.dp).background(if (recBlink) DangerRed else Color.Transparent, CircleShape))
-            Text("REC  $currentTime", color = Color.White, fontSize = 10.sp)
+        Row(Modifier.align(Alignment.TopStart).padding(8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Box(Modifier.size(10.dp).background(if (recBlink) DangerRed else Color.Transparent, CircleShape))
+            Text("REC  $currentTime", color = Color.White, fontSize = 12.sp)
         }
 
         Row(

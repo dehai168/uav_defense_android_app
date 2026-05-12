@@ -38,7 +38,7 @@ fun SettingsDialog(onClose: () -> Unit, onToast: (String) -> Unit) {
                         .padding(vertical = 10.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(title, color = TextMain, fontSize = 12.sp)
+                    Text(title, color = TextMain, fontSize = 14.sp)
                 }
                 Spacer(
                     Modifier

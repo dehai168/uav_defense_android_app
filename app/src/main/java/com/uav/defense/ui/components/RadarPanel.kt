@@ -12,6 +12,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
@@ -33,9 +34,10 @@ private const val RADAR_MAX_DISTANCE_KM = 1.5f
 private const val RADAR_RING_STEP_KM = 0.125f
 private const val RADAR_MAJOR_ANGLE_STEP = 30
 private const val RADAR_MINOR_ANGLE_STEP = 15
-private const val RADAR_SWEEP_TRAIL_STEPS = 18
-private const val RADAR_SWEEP_TRAIL_STEP_DEGREES = 1.8f
-private const val RADAR_SWEEP_PARTICLE_COUNT = 10
+private const val RADAR_SWEEP_TRAIL_TOTAL_ANGLE = 48f
+private const val RADAR_SWEEP_TRAIL_SLICES = 40
+private const val RADAR_SWEEP_TRAIL_SLICE_OVERLAP = 0.3f
+private const val RADAR_CORNER_TEXT_SIZE = 13
 
 @Composable
 fun RadarPanel(
@@ -70,10 +72,6 @@ fun RadarPanel(
             val cy = size.height / 2f
             val maxR = min(size.width, size.height) * 0.85f / 2f
             val scale = maxR / RADAR_MAX_DISTANCE_KM
-            val labelAngle = Math.toRadians(32.0)
-            val labelSin = kotlin.math.sin(labelAngle).toFloat()
-            val labelCos = kotlin.math.cos(labelAngle).toFloat()
-
             for (ringIndex in 1..(RADAR_MAX_DISTANCE_KM / RADAR_RING_STEP_KM).toInt()) {
                 val distanceKm = ringIndex * RADAR_RING_STEP_KM
                 val radius = maxR * (distanceKm / RADAR_MAX_DISTANCE_KM)
@@ -84,20 +82,22 @@ fun RadarPanel(
                     center = Offset(cx, cy),
                     style = Stroke(if (isMajor) 1.15f else 0.75f)
                 )
-                if (isMajor) {
-                    val label = textMeasurer.measure(
-                        "%.1f".format(distanceKm),
-                        style = TextStyle(fontSize = 9.sp, color = RadarGreen.copy(alpha = 0.72f))
-                    )
-                    val labelRadius = (radius - 18f).coerceAtLeast(10f)
-                    drawText(
-                        textLayoutResult = label,
-                        topLeft = Offset(
-                            cx + labelRadius * labelSin - label.size.width / 2f,
-                            cy - labelRadius * labelCos - label.size.height / 2f
-                        )
-                    )
-                }
+            }
+
+            listOf(0.5f, 1.0f, 1.5f).forEach { distanceKm ->
+                val radius = maxR * (distanceKm / RADAR_MAX_DISTANCE_KM)
+                val label = textMeasurer.measure(
+                    "%.1f".format(distanceKm),
+                    style = TextStyle(fontSize = 10.sp, color = RadarGreen.copy(alpha = 0.82f), fontWeight = FontWeight.SemiBold)
+                )
+                drawText(
+                    textLayoutResult = label,
+                    topLeft = Offset(cx + radius + 6f, cy - label.size.height / 2f)
+                )
+                drawText(
+                    textLayoutResult = label,
+                    topLeft = Offset(cx - label.size.width / 2f, cy - radius - label.size.height - 4f)
+                )
             }
 
             for (deg in 0 until 360 step RADAR_MAJOR_ANGLE_STEP) {
@@ -139,33 +139,17 @@ fun RadarPanel(
                 )
             }
 
-            for (step in RADAR_SWEEP_TRAIL_STEPS downTo 1) {
-                val progress = 1f - (step - 1) / RADAR_SWEEP_TRAIL_STEPS.toFloat()
-                val angle = radarSweepAngle - (step - 1) * RADAR_SWEEP_TRAIL_STEP_DEGREES
-                val rad = Math.toRadians(angle.toDouble())
-                val sinValue = kotlin.math.sin(rad).toFloat()
-                val cosValue = kotlin.math.cos(rad).toFloat()
-                val length = maxR * (0.62f + progress * 0.38f)
-                val color = RadarGreen.copy(alpha = 0.04f + progress * 0.26f)
-
-                drawLine(
-                    color = color,
-                    start = Offset(cx, cy),
-                    end = Offset(cx + length * sinValue, cy - length * cosValue),
-                    strokeWidth = 0.8f + progress * 1.2f
+            val sliceAngle = RADAR_SWEEP_TRAIL_TOTAL_ANGLE / RADAR_SWEEP_TRAIL_SLICES
+            for (slice in 0 until RADAR_SWEEP_TRAIL_SLICES) {
+                val progress = slice.toFloat() / RADAR_SWEEP_TRAIL_SLICES
+                drawArc(
+                    color = RadarGreen.copy(alpha = progress * 0.5f),
+                    startAngle = radarSweepAngle - 90f - RADAR_SWEEP_TRAIL_TOTAL_ANGLE + slice * sliceAngle,
+                    sweepAngle = sliceAngle + RADAR_SWEEP_TRAIL_SLICE_OVERLAP,
+                    useCenter = true,
+                    topLeft = Offset(cx - maxR, cy - maxR),
+                    size = Size(maxR * 2, maxR * 2)
                 )
-
-                for (particle in 1..RADAR_SWEEP_PARTICLE_COUNT) {
-                    val distanceRatio = particle / RADAR_SWEEP_PARTICLE_COUNT.toFloat()
-                    val spread = ((particle % 3) - 1) * (1.4f + step * 0.15f)
-                    val px = cx + length * distanceRatio * sinValue + spread * cosValue
-                    val py = cy - length * distanceRatio * cosValue + spread * sinValue
-                    drawCircle(
-                        color = RadarGreen.copy(alpha = color.alpha * (0.45f + distanceRatio * 0.55f)),
-                        radius = 0.9f + progress * 1.3f,
-                        center = Offset(px, py)
-                    )
-                }
             }
 
             val sweep = Math.toRadians(radarSweepAngle.toDouble())
@@ -209,20 +193,20 @@ fun RadarPanel(
         }
 
         Column(Modifier.align(Alignment.TopStart).padding(6.dp)) {
-            Text("扫描周期: 3.2s", color = RadarGreen.copy(alpha = 0.85f), fontSize = 11.sp)
-            Text("扫描方式: 环形", color = RadarGreen.copy(alpha = 0.85f), fontSize = 11.sp)
-            Text("天线方位角: ${"%.1f".format(radarSweepAngle)}°", color = RadarGreen.copy(alpha = 0.85f), fontSize = 11.sp)
-            Text(currentTime, color = RadarGreen.copy(alpha = 0.70f), fontSize = 11.sp)
+            Text("扫描周期: 3.2s", color = RadarGreen.copy(alpha = 0.85f), fontSize = RADAR_CORNER_TEXT_SIZE.sp)
+            Text("扫描方式: 环形", color = RadarGreen.copy(alpha = 0.85f), fontSize = RADAR_CORNER_TEXT_SIZE.sp)
+            Text("天线方位角: ${"%.1f".format(radarSweepAngle)}°", color = RadarGreen.copy(alpha = 0.85f), fontSize = RADAR_CORNER_TEXT_SIZE.sp)
+            Text(currentTime, color = RadarGreen.copy(alpha = 0.70f), fontSize = RADAR_CORNER_TEXT_SIZE.sp)
         }
         Column(Modifier.align(Alignment.TopEnd).padding(6.dp), horizontalAlignment = Alignment.End) {
-            Text("连接状态: 已连接", color = RadarGreen.copy(alpha = 0.85f), fontSize = 11.sp)
-            Text("工作模式: 搜索", color = RadarGreen.copy(alpha = 0.85f), fontSize = 11.sp)
+            Text("连接状态: 已连接", color = RadarGreen.copy(alpha = 0.85f), fontSize = RADAR_CORNER_TEXT_SIZE.sp)
+            Text("工作模式: 搜索", color = RadarGreen.copy(alpha = 0.85f), fontSize = RADAR_CORNER_TEXT_SIZE.sp)
         }
         Column(Modifier.align(Alignment.BottomStart).padding(6.dp)) {
-            Text("一体机: 联动在线", color = RadarGreen.copy(alpha = 0.85f), fontSize = 11.sp)
-            Text("连接状态: 已连接", color = RadarGreen.copy(alpha = 0.85f), fontSize = 11.sp)
-            Text("工作模式: 搜索", color = RadarGreen.copy(alpha = 0.85f), fontSize = 11.sp)
-            Text("工作状态: 正常工作", color = RadarGreen.copy(alpha = 0.85f), fontSize = 11.sp)
+            Text("一体机: 联动在线", color = RadarGreen.copy(alpha = 0.85f), fontSize = RADAR_CORNER_TEXT_SIZE.sp)
+            Text("连接状态: 已连接", color = RadarGreen.copy(alpha = 0.85f), fontSize = RADAR_CORNER_TEXT_SIZE.sp)
+            Text("工作模式: 搜索", color = RadarGreen.copy(alpha = 0.85f), fontSize = RADAR_CORNER_TEXT_SIZE.sp)
+            Text("工作状态: 正常工作", color = RadarGreen.copy(alpha = 0.85f), fontSize = RADAR_CORNER_TEXT_SIZE.sp)
         }
     }
 }

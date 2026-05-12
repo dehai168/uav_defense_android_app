@@ -56,7 +56,7 @@ fun ScanDialog(
                     FilterChip(
                         selected = relationFilter == k,
                         onClick = { onSetRelationFilter(k) },
-                        label = { Text(v, fontSize = 11.sp) },
+                        label = { Text(v, fontSize = 13.sp) },
                         colors = FilterChipDefaults.filterChipColors(
                             selectedContainerColor = AccentCyan.copy(alpha = 0.2f),
                             selectedLabelColor = AccentCyan,
@@ -71,7 +71,7 @@ fun ScanDialog(
                     FilterChip(
                         selected = it in selectedCategories,
                         onClick = { onToggleCategory(it) },
-                        label = { Text(it, fontSize = 11.sp) },
+                        label = { Text(it, fontSize = 13.sp) },
                         colors = FilterChipDefaults.filterChipColors(
                             selectedContainerColor = AccentCyan.copy(alpha = 0.2f),
                             selectedLabelColor = AccentCyan,
@@ -108,15 +108,15 @@ fun ScanDialog(
                                 horizontalArrangement = Arrangement.spacedBy(6.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text(t.droneModel, color = TextMain, fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
+                                Text(t.droneModel, color = TextMain, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
                                 Tag(if (t.relation == "hostile") "敌" else "友", if (t.relation == "hostile") DangerRed else RadarGreen)
                                 Tag(t.typeLabel, AccentCyan)
                             }
                             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                                Text("${t.distance}km", color = TextMain.copy(alpha = 0.65f), fontSize = 10.sp)
-                                Text("${t.altitude}m", color = TextMain.copy(alpha = 0.65f), fontSize = 10.sp)
-                                Text("${t.speed}km/h", color = TextMain.copy(alpha = 0.65f), fontSize = 10.sp)
-                                Text(t.detectedAt, color = TextMain.copy(alpha = 0.65f), fontSize = 10.sp)
+                                 Text("${t.distance}km", color = TextMain.copy(alpha = 0.65f), fontSize = 12.sp)
+                                 Text("${t.altitude}m", color = TextMain.copy(alpha = 0.65f), fontSize = 12.sp)
+                                 Text("${t.speed}km/h", color = TextMain.copy(alpha = 0.65f), fontSize = 12.sp)
+                                 Text(t.detectedAt, color = TextMain.copy(alpha = 0.65f), fontSize = 12.sp)
                             }
                         }
                     }
@@ -131,7 +131,7 @@ private fun Tag(text: String, color: Color) {
     Text(
         text,
         color = color,
-        fontSize = 9.sp,
+        fontSize = 11.sp,
         modifier = Modifier
             .background(color.copy(alpha = 0.15f), RoundedCornerShape(3.dp))
             .border(0.5.dp, color.copy(alpha = 0.5f), RoundedCornerShape(3.dp))

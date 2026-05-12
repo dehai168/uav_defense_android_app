@@ -61,7 +61,7 @@ fun MenuDialogFrame(
                         Text(
                             text = title,
                             color = AccentCyan,
-                            fontSize = 16.sp,
+                            fontSize = 18.sp,
                             fontWeight = FontWeight.Bold,
                             modifier = Modifier.align(Alignment.CenterStart)
                         )

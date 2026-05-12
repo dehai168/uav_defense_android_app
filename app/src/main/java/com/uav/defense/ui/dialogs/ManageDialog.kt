@@ -21,6 +21,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.uav.defense.data.models.RadarParams
@@ -70,7 +71,7 @@ fun ManageDialog(radarParams: RadarParams, onClose: () -> Unit, onSave: (RadarPa
                     Text(
                         label,
                         color = TextMain.copy(alpha = 0.75f),
-                        fontSize = 12.sp,
+                        fontSize = 14.sp,
                         modifier = Modifier.width(90.dp)
                     )
                     OutlinedTextField(
@@ -83,7 +84,8 @@ fun ManageDialog(radarParams: RadarParams, onClose: () -> Unit, onSave: (RadarPa
                             focusedBorderColor = AccentCyan,
                             unfocusedBorderColor = BorderColor,
                             cursorColor = AccentCyan
-                        )
+                        ),
+                        textStyle = TextStyle(fontSize = 18.sp)
                     )
                 }
                 Spacer(Modifier.height(8.dp))
@@ -97,7 +99,7 @@ fun ManageDialog(radarParams: RadarParams, onClose: () -> Unit, onSave: (RadarPa
                 modifier = Modifier.fillMaxWidth(),
                 colors = ButtonDefaults.buttonColors(containerColor = AccentCyan)
             ) {
-                Text("保存参数", color = Color.Black)
+                Text("保存参数", color = Color.Black, fontSize = 14.sp)
             }
         }
     }
