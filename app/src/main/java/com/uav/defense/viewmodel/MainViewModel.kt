@@ -27,9 +27,11 @@ class MainViewModel : ViewModel() {
         private const val MAX_DISTANCE_DELTA = 0.015f
         private const val MIN_DISTANCE_KM = 0.3f
         private const val MAX_DISTANCE_KM = 1.5f
-        private const val RADAR_LAT = 39.909230
-        private const val RADAR_LNG = 116.397428
+        private const val RADAR_LAT = 22.5307369
+        private const val RADAR_LNG = 114.0573761
         private const val METERS_PER_LAT_DEG = 111000.0
+        // 360° / 64 updates = 5.625° per 50 ms tick, matching a 3.2 s full sweep.
+        private const val RADAR_SWEEP_STEP_DEGREES = 5.625f
         // Longitude-degree meter length depends on latitude; computed once for radar latitude.
         private val METERS_PER_LNG_DEG: Double = METERS_PER_LAT_DEG * cos(Math.toRadians(RADAR_LAT))
     }
@@ -152,7 +154,7 @@ class MainViewModel : ViewModel() {
         }
     }
 
-    fun updateRadarSweep() { _radarSweepAngle.update { (it + 3f) % FULL_CIRCLE_DEGREES } }
+    fun updateRadarSweep() { _radarSweepAngle.update { (it + RADAR_SWEEP_STEP_DEGREES) % FULL_CIRCLE_DEGREES } }
 
     private fun updateCurrentTime() {
         _currentTime.value = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))

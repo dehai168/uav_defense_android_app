@@ -2,8 +2,8 @@ package com.uav.defense.data.models
 
 data class RadarParams(
     val name: String = "近程雷达-01",
-    val lng: String = "116.397428",
-    val lat: String = "39.909230",
+    val lng: String = "114.0573761",
+    val lat: String = "22.5307369",
     val altitude: String = "58",
     val azimuth: String = "48",
     val pitch: String = "12",

@@ -38,6 +38,7 @@ private const val RADAR_SWEEP_TRAIL_TOTAL_ANGLE = 48f
 private const val RADAR_SWEEP_TRAIL_SLICES = 40
 private const val RADAR_SWEEP_TRAIL_SLICE_OVERLAP = 0.3f
 private const val RADAR_CORNER_TEXT_SIZE = 13
+private const val RADAR_SCAN_PERIOD_SECONDS = 3.2f
 
 @Composable
 fun RadarPanel(
@@ -51,6 +52,11 @@ fun RadarPanel(
     modifier: Modifier = Modifier
 ) {
     val textMeasurer = rememberTextMeasurer()
+    fun formatRadarDistanceLabel(distanceKm: Float): String = if (distanceKm % 1f == 0f) {
+        distanceKm.toInt().toString()
+    } else {
+        "%.1f".format(distanceKm)
+    }
 
     Box(modifier = modifier.background(Color(0xFF000308)).pointerInput(targets, enabledTargetIds) {
         detectTapGestures(
@@ -87,16 +93,16 @@ fun RadarPanel(
             listOf(0.5f, 1.0f, 1.5f).forEach { distanceKm ->
                 val radius = maxR * (distanceKm / RADAR_MAX_DISTANCE_KM)
                 val label = textMeasurer.measure(
-                    "%.1f".format(distanceKm),
+                    formatRadarDistanceLabel(distanceKm),
                     style = TextStyle(fontSize = 10.sp, color = RadarGreen.copy(alpha = 0.82f), fontWeight = FontWeight.SemiBold)
                 )
                 drawText(
                     textLayoutResult = label,
-                    topLeft = Offset(cx + radius + 6f, cy - label.size.height / 2f)
+                    topLeft = Offset(cx + radius - label.size.width - 10f, cy - label.size.height / 2f)
                 )
                 drawText(
                     textLayoutResult = label,
-                    topLeft = Offset(cx - label.size.width / 2f, cy - radius - label.size.height - 4f)
+                    topLeft = Offset(cx - label.size.width / 2f, cy - radius + 8f)
                 )
             }
 
@@ -183,7 +189,7 @@ fun RadarPanel(
                 }
                 drawCircle(color, 5f, point)
                 if (selectedTargetId == target.id) drawCircle(AccentCyan, 8f, point, style = Stroke(1.5f))
-                val label = textMeasurer.measure("T${target.id.takeLast(2)}", style = TextStyle(fontSize = 8.sp, color = color))
+                val label = textMeasurer.measure(target.droneModel, style = TextStyle(fontSize = 8.sp, color = color))
                 drawText(textLayoutResult = label, topLeft = Offset(point.x + 6f, point.y - label.size.height / 2f))
             }
 
@@ -193,7 +199,7 @@ fun RadarPanel(
         }
 
         Column(Modifier.align(Alignment.TopStart).padding(6.dp)) {
-            Text("扫描周期: 3.2s", color = RadarGreen.copy(alpha = 0.85f), fontSize = RADAR_CORNER_TEXT_SIZE.sp)
+            Text("扫描周期: ${RADAR_SCAN_PERIOD_SECONDS}s", color = RadarGreen.copy(alpha = 0.85f), fontSize = RADAR_CORNER_TEXT_SIZE.sp)
             Text("扫描方式: 环形", color = RadarGreen.copy(alpha = 0.85f), fontSize = RADAR_CORNER_TEXT_SIZE.sp)
             Text("天线方位角: ${"%.1f".format(radarSweepAngle)}°", color = RadarGreen.copy(alpha = 0.85f), fontSize = RADAR_CORNER_TEXT_SIZE.sp)
             Text(currentTime, color = RadarGreen.copy(alpha = 0.70f), fontSize = RADAR_CORNER_TEXT_SIZE.sp)
