@@ -88,7 +88,8 @@ private const val TARGET_CIRCLE_RADIUS_METERS = 38.0
 private const val TAP_DETECTION_RADIUS_METERS = 96.0
 private const val DEFAULT_MAP_ZOOM = 15f
 private const val MAP_SWEEP_TRAIL_TOTAL_ANGLE = 48.0
-private const val MAP_SWEEP_TRAIL_SLICES = 40
+private const val MAP_SWEEP_TRAIL_SLICES = 24
+// Adjacent sweep slices overlap by 0.35° to avoid visible seams at the leading edge.
 private const val MAP_SWEEP_TRAIL_SLICE_OVERLAP_DEGREES = 0.35
 private const val MAP_SWEEP_HEAD_STROKE_WIDTH = 5.5f
 private const val MAP_SWEEP_MIN_FILL_ALPHA = 10f
