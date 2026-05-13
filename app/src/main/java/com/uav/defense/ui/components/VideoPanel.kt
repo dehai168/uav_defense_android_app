@@ -41,7 +41,7 @@ import com.uav.defense.ui.theme.TextMain
 import kotlinx.coroutines.delay
 import kotlin.math.sin
 
-private const val VIDEO_ASSET_URI = "asset:///out.mp4"
+private const val VIDEO_ASSET_URI = "asset:///output.mp4"
 private const val CROSSHAIR_ALPHA = 0.72f
 private const val CROSSHAIR_STROKE_WIDTH = 1.5f
 private val TRACKING_OVERLAY_COLOR = Color(0xFF00FF88)
