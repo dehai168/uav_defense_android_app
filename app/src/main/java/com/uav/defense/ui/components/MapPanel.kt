@@ -62,6 +62,8 @@ import com.amap.api.maps2d.model.CircleOptions
 import com.amap.api.maps2d.model.LatLng
 import com.amap.api.maps2d.model.Marker
 import com.amap.api.maps2d.model.MarkerOptions
+import com.amap.api.maps2d.model.Polygon
+import com.amap.api.maps2d.model.PolygonOptions
 import com.amap.api.maps2d.model.Polyline
 import com.amap.api.maps2d.model.PolylineOptions
 import com.uav.defense.data.models.PadTarget
@@ -85,9 +87,10 @@ private val METERS_PER_LNG_DEG: Double = METERS_PER_LAT_DEG * cos(Math.toRadians
 private const val TARGET_CIRCLE_RADIUS_METERS = 38.0
 private const val TAP_DETECTION_RADIUS_METERS = 96.0
 private const val DEFAULT_MAP_ZOOM = 15f
-// A short 9-step trail with 3.5° spacing keeps the map beam smooth without reintroducing the old triangle fan look.
-private const val MAP_SWEEP_TRAIL_STEPS = 9
-private const val MAP_SWEEP_TRAIL_STEP_DEGREES = 3.5
+private const val MAP_SWEEP_TRAIL_TOTAL_ANGLE = 48.0
+private const val MAP_SWEEP_TRAIL_SLICES = 40
+private const val MAP_SWEEP_TRAIL_SLICE_OVERLAP = 0.35
+private const val MAP_SWEEP_HEAD_STROKE_WIDTH = 5.5f
 private const val TARGET_ALERT_RATIO = 0.5f
 private const val TARGET_LABEL_TEXT_SIZE_DP = 11f
 private const val TARGET_LABEL_HORIZONTAL_PADDING_DP = 8f
@@ -123,7 +126,8 @@ fun MapPanel(
     val targetLabelMap = remember { mutableStateMapOf<String, Marker>() }
     val markerTargetMap = remember { mutableStateMapOf<String, String>() }
     val targetMarkerIdMap = remember { mutableStateMapOf<String, String>() }
-    val sweepTrailLines = remember { mutableStateListOf<Polyline>() }
+    val sweepTrailSlices = remember { mutableStateListOf<Polygon>() }
+    var sweepHeadLine by remember { mutableStateOf<Polyline?>(null) }
     var radarMarker by remember { mutableStateOf<Marker?>(null) }
     var suppressNextMapClick by remember { mutableStateOf(false) }
 
@@ -177,24 +181,34 @@ fun MapPanel(
 
         LaunchedEffect(amap, radarSweepAngle) {
             val map = amap ?: return@LaunchedEffect
-            sweepTrailLines.forEach { it.remove() }
-            sweepTrailLines.clear()
+            sweepTrailSlices.forEach { it.remove() }
+            sweepTrailSlices.clear()
+            sweepHeadLine?.remove()
 
-            for (step in MAP_SWEEP_TRAIL_STEPS downTo 1) {
-                val progress = 1f - (step - 1) / MAP_SWEEP_TRAIL_STEPS.toFloat()
-                val angle = radarSweepAngle.toDouble() - (step - 1) * MAP_SWEEP_TRAIL_STEP_DEGREES
-                val length = RADAR_RANGE_M * (0.72 + progress * 0.28)
-                val strokeAlpha = (40 + progress * 175).roundToInt()
-                val strokeWidth = 3.5f + progress * 11f
-                map.addPolyline(
-                    buildRadarSweepLine(
-                        sweepAngle = angle,
-                        distanceMeters = length,
-                        strokeAlpha = strokeAlpha,
-                        strokeWidth = strokeWidth
+            val sliceAngle = MAP_SWEEP_TRAIL_TOTAL_ANGLE / MAP_SWEEP_TRAIL_SLICES
+            for (slice in 0 until MAP_SWEEP_TRAIL_SLICES) {
+                val progress = (slice + 1).toFloat() / MAP_SWEEP_TRAIL_SLICES
+                val startAngle = radarSweepAngle.toDouble() - MAP_SWEEP_TRAIL_TOTAL_ANGLE + slice * sliceAngle
+                val endAngle = startAngle + sliceAngle + MAP_SWEEP_TRAIL_SLICE_OVERLAP
+                map.addPolygon(
+                    buildRadarSweepSlice(
+                        startAngle = startAngle,
+                        endAngle = endAngle,
+                        distanceMeters = RADAR_RANGE_M,
+                        fillAlpha = (10 + progress * 105f).roundToInt(),
+                        strokeAlpha = (6 + progress * 24f).roundToInt()
                     )
-                )?.let(sweepTrailLines::add)
+                )?.let(sweepTrailSlices::add)
             }
+            sweepHeadLine = map.addPolyline(
+                buildRadarSweepLine(
+                    sweepAngle = radarSweepAngle.toDouble(),
+                    distanceMeters = RADAR_RANGE_M,
+                    strokeAlpha = 235,
+                    strokeWidth = MAP_SWEEP_HEAD_STROKE_WIDTH
+                )
+            )
+            sweepHeadLine?.zIndex = 19f
             radarMarker?.zIndex = 20f
         }
 
@@ -343,6 +357,24 @@ private fun buildRadarSweepLine(
         .add(LatLng(RADAR_LAT, RADAR_LNG), pointAt(sweepAngle, distanceMeters))
         .color(android.graphics.Color.argb(strokeAlpha.coerceIn(0, 255), 80, 255, 180))
         .width(strokeWidth)
+}
+
+private fun buildRadarSweepSlice(
+    startAngle: Double,
+    endAngle: Double,
+    distanceMeters: Double,
+    fillAlpha: Int,
+    strokeAlpha: Int
+): PolygonOptions {
+    return PolygonOptions()
+        .add(
+            LatLng(RADAR_LAT, RADAR_LNG),
+            pointAt(startAngle, distanceMeters),
+            pointAt(endAngle, distanceMeters)
+        )
+        .fillColor(android.graphics.Color.argb(fillAlpha.coerceIn(0, 255), 80, 255, 180))
+        .strokeColor(android.graphics.Color.argb(strokeAlpha.coerceIn(0, 255), 80, 255, 180))
+        .strokeWidth(1f)
 }
 
 private fun targetDistanceColor(distanceKm: Float): Int {
