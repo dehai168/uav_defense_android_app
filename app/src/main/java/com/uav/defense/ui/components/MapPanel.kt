@@ -91,6 +91,10 @@ private const val MAP_SWEEP_TRAIL_TOTAL_ANGLE = 48.0
 private const val MAP_SWEEP_TRAIL_SLICES = 40
 private const val MAP_SWEEP_TRAIL_SLICE_OVERLAP = 0.35
 private const val MAP_SWEEP_HEAD_STROKE_WIDTH = 5.5f
+private const val MAP_SWEEP_MIN_FILL_ALPHA = 10f
+private const val MAP_SWEEP_FILL_ALPHA_RANGE = 105f
+private const val MAP_SWEEP_MIN_STROKE_ALPHA = 6f
+private const val MAP_SWEEP_STROKE_ALPHA_RANGE = 24f
 private const val TARGET_ALERT_RATIO = 0.5f
 private const val TARGET_LABEL_TEXT_SIZE_DP = 11f
 private const val TARGET_LABEL_HORIZONTAL_PADDING_DP = 8f
@@ -104,8 +108,8 @@ private val MAP_SWEEP_SLICE_SPECS = List(MAP_SWEEP_TRAIL_SLICES) { index ->
     val progress = (index + 1).toFloat() / MAP_SWEEP_TRAIL_SLICES
     MapSweepSliceSpec(
         angleOffset = index * MAP_SWEEP_SLICE_ANGLE,
-        fillAlpha = (10 + progress * 105f).roundToInt(),
-        strokeAlpha = (6 + progress * 24f).roundToInt()
+        fillAlpha = (MAP_SWEEP_MIN_FILL_ALPHA + progress * MAP_SWEEP_FILL_ALPHA_RANGE).roundToInt(),
+        strokeAlpha = (MAP_SWEEP_MIN_STROKE_ALPHA + progress * MAP_SWEEP_STROKE_ALPHA_RANGE).roundToInt()
     )
 }
 
