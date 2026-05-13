@@ -89,7 +89,7 @@ private const val TAP_DETECTION_RADIUS_METERS = 96.0
 private const val DEFAULT_MAP_ZOOM = 15f
 private const val MAP_SWEEP_TRAIL_TOTAL_ANGLE = 48.0
 private const val MAP_SWEEP_TRAIL_SLICES = 40
-private const val MAP_SWEEP_TRAIL_SLICE_OVERLAP = 0.35
+private const val MAP_SWEEP_TRAIL_SLICE_OVERLAP_DEGREES = 0.35
 private const val MAP_SWEEP_HEAD_STROKE_WIDTH = 5.5f
 private const val MAP_SWEEP_MIN_FILL_ALPHA = 10f
 private const val MAP_SWEEP_FILL_ALPHA_RANGE = 105f
@@ -103,21 +103,25 @@ private const val TARGET_LABEL_INDICATOR_RADIUS_DP = 4f
 private const val TARGET_LABEL_GAP_DP = 6f
 private const val TARGET_LABEL_MIN_WIDTH_DP = 72f
 private const val TARGET_LABEL_MIN_HEIGHT_DP = 26f
-private val MAP_SWEEP_SLICE_ANGLE = MAP_SWEEP_TRAIL_TOTAL_ANGLE / MAP_SWEEP_TRAIL_SLICES.toDouble()
-private val MAP_SWEEP_SLICE_SPECS = List(MAP_SWEEP_TRAIL_SLICES) { index ->
-    val progress = (index + 1).toFloat() / MAP_SWEEP_TRAIL_SLICES
-    MapSweepSliceSpec(
-        angleOffset = index * MAP_SWEEP_SLICE_ANGLE,
-        fillAlpha = (MAP_SWEEP_MIN_FILL_ALPHA + progress * MAP_SWEEP_FILL_ALPHA_RANGE).roundToInt(),
-        strokeAlpha = (MAP_SWEEP_MIN_STROKE_ALPHA + progress * MAP_SWEEP_STROKE_ALPHA_RANGE).roundToInt()
-    )
-}
+private val MAP_SWEEP_SLICE_SPECS = buildMapSweepSliceSpecs()
 
 private data class MapSweepSliceSpec(
     val angleOffset: Double,
     val fillAlpha: Int,
     val strokeAlpha: Int
 )
+
+private fun buildMapSweepSliceSpecs(): List<MapSweepSliceSpec> {
+    val sliceAngle = MAP_SWEEP_TRAIL_TOTAL_ANGLE / MAP_SWEEP_TRAIL_SLICES.toDouble()
+    return List(MAP_SWEEP_TRAIL_SLICES) { index ->
+        val progress = (index + 1).toFloat() / MAP_SWEEP_TRAIL_SLICES
+        MapSweepSliceSpec(
+            angleOffset = index * sliceAngle,
+            fillAlpha = (MAP_SWEEP_MIN_FILL_ALPHA + progress * MAP_SWEEP_FILL_ALPHA_RANGE).roundToInt(),
+            strokeAlpha = (MAP_SWEEP_MIN_STROKE_ALPHA + progress * MAP_SWEEP_STROKE_ALPHA_RANGE).roundToInt()
+        )
+    }
+}
 
 @Composable
 fun MapPanel(
@@ -200,13 +204,14 @@ fun MapPanel(
 
         LaunchedEffect(amap, radarSweepAngle) {
             val map = amap ?: return@LaunchedEffect
+            val sliceAngleDegrees = MAP_SWEEP_TRAIL_TOTAL_ANGLE / MAP_SWEEP_TRAIL_SLICES.toDouble()
             sweepTrailSlices.forEach { it.remove() }
             sweepTrailSlices.clear()
             sweepHeadLine?.remove()
 
             for (sliceSpec in MAP_SWEEP_SLICE_SPECS) {
                 val startAngle = radarSweepAngle.toDouble() - MAP_SWEEP_TRAIL_TOTAL_ANGLE + sliceSpec.angleOffset
-                val endAngle = startAngle + MAP_SWEEP_SLICE_ANGLE + MAP_SWEEP_TRAIL_SLICE_OVERLAP
+                val endAngle = startAngle + sliceAngleDegrees + MAP_SWEEP_TRAIL_SLICE_OVERLAP_DEGREES
                 map.addPolygon(
                     buildRadarSweepSlice(
                         startAngle = startAngle,
