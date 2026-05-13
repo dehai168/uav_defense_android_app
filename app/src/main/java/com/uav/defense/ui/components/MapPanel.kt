@@ -99,6 +99,21 @@ private const val TARGET_LABEL_INDICATOR_RADIUS_DP = 4f
 private const val TARGET_LABEL_GAP_DP = 6f
 private const val TARGET_LABEL_MIN_WIDTH_DP = 72f
 private const val TARGET_LABEL_MIN_HEIGHT_DP = 26f
+private val MAP_SWEEP_SLICE_ANGLE = MAP_SWEEP_TRAIL_TOTAL_ANGLE / MAP_SWEEP_TRAIL_SLICES
+private val MAP_SWEEP_SLICE_SPECS = List(MAP_SWEEP_TRAIL_SLICES) { index ->
+    val progress = (index + 1).toFloat() / MAP_SWEEP_TRAIL_SLICES
+    MapSweepSliceSpec(
+        angleOffset = index * MAP_SWEEP_SLICE_ANGLE,
+        fillAlpha = (10 + progress * 105f).roundToInt(),
+        strokeAlpha = (6 + progress * 24f).roundToInt()
+    )
+}
+
+private data class MapSweepSliceSpec(
+    val angleOffset: Double,
+    val fillAlpha: Int,
+    val strokeAlpha: Int
+)
 
 @Composable
 fun MapPanel(
@@ -185,18 +200,16 @@ fun MapPanel(
             sweepTrailSlices.clear()
             sweepHeadLine?.remove()
 
-            val sliceAngle = MAP_SWEEP_TRAIL_TOTAL_ANGLE / MAP_SWEEP_TRAIL_SLICES
-            for (slice in 0 until MAP_SWEEP_TRAIL_SLICES) {
-                val progress = (slice + 1).toFloat() / MAP_SWEEP_TRAIL_SLICES
-                val startAngle = radarSweepAngle.toDouble() - MAP_SWEEP_TRAIL_TOTAL_ANGLE + slice * sliceAngle
-                val endAngle = startAngle + sliceAngle + MAP_SWEEP_TRAIL_SLICE_OVERLAP
+            for (sliceSpec in MAP_SWEEP_SLICE_SPECS) {
+                val startAngle = radarSweepAngle.toDouble() - MAP_SWEEP_TRAIL_TOTAL_ANGLE + sliceSpec.angleOffset
+                val endAngle = startAngle + MAP_SWEEP_SLICE_ANGLE + MAP_SWEEP_TRAIL_SLICE_OVERLAP
                 map.addPolygon(
                     buildRadarSweepSlice(
                         startAngle = startAngle,
                         endAngle = endAngle,
                         distanceMeters = RADAR_RANGE_M,
-                        fillAlpha = (10 + progress * 105f).roundToInt(),
-                        strokeAlpha = (6 + progress * 24f).roundToInt()
+                        fillAlpha = sliceSpec.fillAlpha,
+                        strokeAlpha = sliceSpec.strokeAlpha
                     )
                 )?.let(sweepTrailSlices::add)
             }
