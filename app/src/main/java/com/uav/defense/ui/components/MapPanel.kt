@@ -99,7 +99,7 @@ private const val TARGET_LABEL_INDICATOR_RADIUS_DP = 4f
 private const val TARGET_LABEL_GAP_DP = 6f
 private const val TARGET_LABEL_MIN_WIDTH_DP = 72f
 private const val TARGET_LABEL_MIN_HEIGHT_DP = 26f
-private val MAP_SWEEP_SLICE_ANGLE = MAP_SWEEP_TRAIL_TOTAL_ANGLE / MAP_SWEEP_TRAIL_SLICES
+private val MAP_SWEEP_SLICE_ANGLE = MAP_SWEEP_TRAIL_TOTAL_ANGLE / MAP_SWEEP_TRAIL_SLICES.toDouble()
 private val MAP_SWEEP_SLICE_SPECS = List(MAP_SWEEP_TRAIL_SLICES) { index ->
     val progress = (index + 1).toFloat() / MAP_SWEEP_TRAIL_SLICES
     MapSweepSliceSpec(
