@@ -1,4 +1,4 @@
-name: Build APK
+name: Build AI Native Voice Translation APK
 
 on:
   push:
@@ -12,6 +12,10 @@ on:
       - 'gradle.properties'
       - '.github/workflows/build-apk.yml'
       - 'app/signing/**'
+      - 'cpp/**'
+      - 'docs/**'
+      - '.devcontainer/**'
+      - 'README.md'
   workflow_dispatch:
 
 concurrency:
@@ -68,7 +72,7 @@ jobs:
             echo "Using repository keystore at app/signing/release.jks."
           else
             echo "::warning::RELEASE_JKS_BASE64 is not set; generating temporary CI keystore for release build."
-            CI_RELEASE_ALIAS="ci_uav_defense"
+            CI_RELEASE_ALIAS="ci_ai_native_voice_translation"
             CI_RELEASE_STORE_PASSWORD="$(openssl rand -hex 16)"
             CI_RELEASE_KEY_PASSWORD="$(openssl rand -hex 16)"
             echo "::add-mask::${CI_RELEASE_STORE_PASSWORD}"
@@ -162,10 +166,10 @@ jobs:
           ASSET_DIR="app/build/outputs/apk/ci-assets"
           mkdir -p "${ASSET_DIR}"
 
-          DEBUG_ASSET="${ASSET_DIR}/uav-defense-debug.apk"
-          RELEASE_ASSET="${ASSET_DIR}/uav-defense-release.apk"
+          DEBUG_ASSET="${ASSET_DIR}/ai-native-voice-translation-debug.apk"
+          RELEASE_ASSET="${ASSET_DIR}/ai-native-voice-translation-release.apk"
           if [ "${RELEASE_SIGNED}" != "true" ]; then
-            RELEASE_ASSET="${ASSET_DIR}/uav-defense-release-unsigned.apk"
+            RELEASE_ASSET="${ASSET_DIR}/ai-native-voice-translation-release-unsigned.apk"
           fi
 
           cp "${DEBUG_APK}" "${DEBUG_ASSET}"
