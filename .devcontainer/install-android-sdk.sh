@@ -28,5 +28,7 @@ export PATH="$CMDLINE_TOOLS_DIR/bin:$ANDROID_SDK_ROOT/platform-tools:$PATH"
 yes | sdkmanager --sdk_root="$ANDROID_SDK_ROOT" --licenses >/dev/null
 sdkmanager --sdk_root="$ANDROID_SDK_ROOT" \
   "platform-tools" \
-  "platforms;android-31" \
-  "build-tools;31.0.0"
+  "platforms;android-34" \
+  "build-tools;34.0.0" \
+  "cmake;3.22.1" \
+  "ndk;26.3.11579264"

@@ -1,18 +1,19 @@
 {
-  "name": "uav-defense-android-app",
+  "name": "ai-native-voice-translation-app",
   "image": "mcr.microsoft.com/devcontainers/java:1-17-bullseye",
   "containerEnv": {
     "ANDROID_SDK_ROOT": "/workspaces/android-sdk",
     "ANDROID_HOME": "/workspaces/android-sdk"
   },
-  "postCreateCommand": "bash .devcontainer/install-android-sdk.sh && ./gradlew --version",
+  "postCreateCommand": "bash .devcontainer/install-android-sdk.sh && chmod +x gradlew && ./gradlew --version",
   "customizations": {
     "vscode": {
       "extensions": [
         "vscjava.vscode-java-pack",
         "redhat.java",
         "vscjava.vscode-gradle",
-        "adelphes.android-dev-ext"
+        "adelphes.android-dev-ext",
+        "ms-vscode.cpptools"
       ]
     }
   }
