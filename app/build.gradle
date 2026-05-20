@@ -1,0 +1,119 @@
+plugins {
+    id 'com.android.application'
+    id 'org.jetbrains.kotlin.android'
+}
+
+def releaseKeystorePath = 'app/signing/release.jks'
+def releaseKeystoreFile = rootProject.file(releaseKeystorePath)
+def releaseKeyAlias = (findProperty('RELEASE_KEY_ALIAS') ?: System.getenv('RELEASE_KEY_ALIAS') ?: 'uav_defense').toString()
+def releaseStorePassword = (findProperty('RELEASE_STORE_PASSWORD') ?: System.getenv('RELEASE_STORE_PASSWORD') ?: '123456').toString()
+def releaseKeyPassword = (findProperty('RELEASE_KEY_PASSWORD') ?: System.getenv('RELEASE_KEY_PASSWORD') ?: '123456').toString()
+def amapKey = (findProperty('AMAP_KEY') ?: System.getenv('AMAP_KEY') ?: '').toString()
+
+android {
+    namespace 'com.uav.defense'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId 'com.uav.defense'
+        minSdk 26
+        targetSdk 34
+        versionCode 1
+        versionName '1.0'
+        resValue 'string', 'amap_key', amapKey
+
+        ndk {
+            abiFilters 'arm64-v8a', 'armeabi-v7a'
+        }
+    }
+
+    signingConfigs {
+        release {
+            storeFile releaseKeystoreFile
+            storePassword releaseStorePassword
+            keyAlias releaseKeyAlias
+            keyPassword releaseKeyPassword
+        }
+    }
+
+    buildTypes {
+        debug {
+            signingConfig signingConfigs.debug
+        }
+        release {
+            signingConfig signingConfigs.release
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+
+    sourceSets {
+        main {
+            jniLibs.srcDirs = ['libs']
+        }
+    }
+
+    packaging {
+        jniLibs {
+            useLegacyPackaging = true
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    kotlinOptions {
+        jvmTarget = '17'
+    }
+
+    buildFeatures {
+        compose true
+    }
+
+    composeOptions {
+        kotlinCompilerExtensionVersion = '1.5.8'
+    }
+
+    applicationVariants.all { variant ->
+        if (variant.buildType.name == 'release') {
+            variant.outputs.all {
+                outputFileName = "uav-defence-release-${new Date().format('yyyy-MM-dd')}.apk"
+            }
+        }
+    }
+}
+
+gradle.taskGraph.whenReady { taskGraph ->
+    def needsReleaseSigning = taskGraph.allTasks.any { it.name.toLowerCase().contains('release') }
+    if (needsReleaseSigning && !releaseKeystoreFile.exists()) {
+        throw new GradleException(
+            "Missing fixed release keystore at ${releaseKeystoreFile}. " +
+            "Add and keep a stable JKS file at ${releaseKeystorePath} (do not regenerate per build)."
+        )
+    }
+}
+
+dependencies {
+    implementation fileTree(dir: 'libs', include: ['*.jar'])
+
+    implementation 'com.google.android.material:material:1.12.0'
+
+    implementation platform('androidx.compose:compose-bom:2024.02.00')
+    implementation 'androidx.compose.ui:ui'
+    implementation 'androidx.compose.ui:ui-graphics'
+    implementation 'androidx.compose.ui:ui-tooling-preview'
+    implementation 'androidx.compose.material3:material3'
+    implementation 'androidx.compose.material:material-icons-extended'
+
+    implementation 'androidx.activity:activity-compose:1.8.2'
+    implementation 'androidx.lifecycle:lifecycle-viewmodel-compose:2.7.0'
+    implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.7.0'
+    implementation 'androidx.lifecycle:lifecycle-runtime-compose:2.7.0'
+
+    implementation 'androidx.media3:media3-exoplayer:1.2.1'
+    implementation 'androidx.media3:media3-ui:1.2.1'
+
+    debugImplementation 'androidx.compose.ui:ui-tooling'
+}
